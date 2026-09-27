@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DocuMind widget playground</title>
+
+    <style>
+        :root { color-scheme: light dark; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: 3rem 1.25rem;
+            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+        }
+        @media (prefers-color-scheme: dark) { body { background: #05060a; color: #e2e8f0; } }
+        .wrap { max-width: 42rem; margin: 0 auto; }
+        h1 { margin: 0 0 .4rem; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+        p { margin: 0 0 1.5rem; font-size: .9rem; line-height: 1.65; opacity: .7; }
+        .card {
+            border-radius: 1.25rem; border: 1px solid rgb(15 23 42 / .08);
+            background: rgb(255 255 255 / .8); padding: 1.5rem;
+        }
+        @media (prefers-color-scheme: dark) { .card { border-color: rgb(255 255 255 / .08); background: rgb(13 15 21 / .7); } }
+        label { display: block; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; opacity: .6; margin-bottom: .5rem; }
+        input {
+            width: 100%; padding: .7rem .85rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: .8rem; border-radius: .75rem; border: 1px solid rgb(15 23 42 / .12);
+            background: transparent; color: inherit; outline: none;
+        }
+        input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgb(99 102 241 / .15); }
+        .row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+        button {
+            padding: .6rem 1.1rem; border: 0; border-radius: 9999px; font-size: .8rem;
+            font-weight: 700; cursor: pointer; background: #0f172a; color: #fff;
+        }
+        @media (prefers-color-scheme: dark) { button { background: #f1f5f9; color: #0b0d13; } }
+        button.ghost { background: transparent; border: 1px solid rgb(15 23 42 / .15); color: inherit; }
+        .status { display: inline-flex; align-items: center; gap: .45rem; margin-top: 1.25rem; font-size: .75rem; font-weight: 600; }
+        .dot { width: .45rem; height: .45rem; border-radius: 9999px; background: currentColor; }
+        .ok { color: #059669; } .bad { color: #e11d48; } .wait { color: #6366f1; }
+        pre {
+            margin: 1rem 0 0; padding: 1rem; border-radius: .75rem; overflow-x: auto;
+            font-size: .72rem; line-height: 1.6; background: rgb(15 23 42 / .05);
+        }
+        @media (prefers-color-scheme: dark) { pre { background: rgb(255 255 255 / .05); } }
+        .hint { margin-top: 1.5rem; font-size: .75rem; line-height: 1.6; opacity: .55; }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <h1>DocuMind widget playground</h1>
+        <p>
+            Paste a site key from <strong>Widget &rarr; Manage</strong> and mount the real bundle.
+            This page exercises the same code path a customer's website does.
+        </p>
+
+        <div class="card">
+            <label for="key">Site key</label>
+            <input id="key" type="text" placeholder="pk_…" autocomplete="off" spellcheck="false">
+
+            <div class="row">
+                <button id="mount" type="button">Mount widget</button>
+                <button id="remount" class="ghost" type="button">Re-mount (tests idempotency)</button>
+                <button id="unmount" class="ghost" type="button">Unmount</button>
+            </div>
+
+            <span class="status wait" data-status>
+                <span class="dot"></span>
+                <span data-status-text>Waiting for a site key…</span>
+            </span>
+
+            <pre data-log>no requests yet</pre>
+        </div>
+
+        <p class="hint">
+            Open the bubble in the corner and send a message. Every API call is logged below with its URL and
+            status, so a wrong key, a paused site, a missing build or a blocked CORS preflight is visible
+            instead of silently showing nothing.
+        </p>
+    </div>
+
+    <script>
+        (function () {
+            const keyInput = document.getElementById('key');
+            const statusEl = document.querySelector('[data-status]');
+            const statusText = document.querySelector('[data-status-text]');
+            const logEl = document.querySelector('[data-log]');
+            const lines = [];
+
+            function setStatus(state, message) {
+                statusEl.className = 'status ' + state;
+                statusText.textContent = message;
+            }
+
+            function log(message) {
+                lines.unshift(new Date().toLocaleTimeString() + '  ' + message);
+                logEl.textContent = lines.slice(0, 12).join('\n');
+            }
+
+            function loadBundle() {
+                if (window.DocuMindWidget) return Promise.resolve(window.DocuMindWidget);
+
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = '/widget.js';
+                    script.async = true;
+                    script.onload = () => window.DocuMindWidget
+                        ? resolve(window.DocuMindWidget)
+                        : reject(new Error('the bundle did not publish window.DocuMindWidget'));
+                    script.onerror = () => reject(new Error('could not load /widget.js — run "npm run build"'));
+                    document.body.appendChild(script);
+                });
+            }
+
+            async function mount() {
+                const key = keyInput.value.trim();
+
+                if (!key) {
+                    setStatus('bad', 'Enter a site key first.');
+                    return;
+                }
+
+                setStatus('wait', 'Loading widget bundle…');
+
+                try {
+                    const widget = await loadBundle();
+
+                    log('bundle loaded, mounting ' + key);
+                    await widget.mount({ siteKey: key, apiHost: window.location.origin });
+
+                    setStatus('ok', 'Widget mounted. Open the bubble and send a message.');
+                } catch (error) {
+                    log('FAILED: ' + error.message);
+                    setStatus('bad', error.message);
+                }
+            }
+
+            // Report every widget API call so problems are visible.
+            const nativeFetch = window.fetch.bind(window);
+            window.fetch = function (input, init) {
+                const url = typeof input === 'string' ? input : input.url;
+
+                if (url.includes('/api/widget')) {
+                    return nativeFetch(input, init).then((response) => {
+                        log(response.status + '  ' + response.statusText + '  ' + url.replace(window.location.origin, ''));
+                        return response;
+                    }).catch((error) => {
+                        log('NETWORK ERROR  ' + url.replace(window.location.origin, '') + '  ' + error.message);
+                        throw error;
+                    });
+                }
+
+                return nativeFetch(input, init);
+            };
+
+            document.getElementById('mount').addEventListener('click', mount);
+            document.getElementById('remount').addEventListener('click', async () => {
+                await loadBundle();
+                window.DocuMindWidget.unmount();
+                log('unmounted; mounting again to confirm there is no double mount');
+                await mount();
+            });
+            document.getElementById('unmount').addEventListener('click', () => {
+                window.DocuMindWidget?.unmount();
+                log('unmounted');
+            });
+
+            // ?key=pk_... deep link, so a site key can be shared for debugging.
+            const fromQuery = new URLSearchParams(window.location.search).get('key');
+            if (fromQuery) {
+                keyInput.value = fromQuery;
+                mount();
+            }
+        })();
+    </script>
+</body>
+</html>

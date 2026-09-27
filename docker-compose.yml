@@ -1,0 +1,93 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: documind_app
+    volumes:
+      - .:/var/www/html
+    working_dir: /var/www/html
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: php artisan serve --host=0.0.0.0 --port=8000
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: documind_queue
+    # The worker must come back on its own: while it is down every PDF upload
+    # sits in "Queued" forever and the knowledge base silently stops indexing.
+    restart: unless-stopped
+    volumes:
+      - .:/var/www/html
+    working_dir: /var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    command: php artisan queue:work --tries=3 --timeout=300
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: documind_scheduler
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/var/www/html
+    working_dir: /var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    command: php artisan schedule:work
+
+  ml:
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+      args:
+        LLAMA_CPP_VERSION: 0.3.19
+    container_name: documind_ml
+    restart: unless-stopped
+    environment:
+      MODEL_DIR: /models
+      EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
+      CHAT_MODEL: Qwen/Qwen2.5-3B-Instruct-GGUF
+      CHAT_MODEL_FILE: qwen2.5-3b-instruct-q4_k_m.gguf
+      LLM_CTX: "4096"
+      LLM_GPU_LAYERS: "0"
+      LLM_N_THREADS: "0"
+      LLM_MAX_TOKENS: "768"
+      HF_ENDPOINT: ${HF_ENDPOINT:-https://huggingface.co}
+    volumes:
+      - documind_mlmodels:/models
+    ports:
+      - "8090:8090"
+
+  db:
+    image: mariadb:11.4
+    container_name: documind_db
+    environment:
+      MARIADB_DATABASE: documind
+      MARIADB_USER: documind
+      MARIADB_PASSWORD: secret
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - documind_dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  documind_dbdata:
+  documind_mlmodels:
