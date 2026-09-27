@@ -1,4 +1,3 @@
-<img width="500" height="500" alt="logoo" src="https://github.com/user-attachments/assets/f9c6054d-8d33-4ae6-aa7b-63192028886d" />
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">
