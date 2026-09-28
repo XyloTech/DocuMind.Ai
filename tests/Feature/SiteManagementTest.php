@@ -407,6 +407,23 @@ class SiteManagementTest extends TestCase
             ->assertJsonPath('events.unique_visitors', 2);
     }
 
+    public function test_analytics_open_rate_never_exceeds_one_hundred_percent(): void
+    {
+        $user = User::factory()->create();
+        $site = Site::factory()->create(['user_id' => $user->getKey()]);
+
+        // A visitor reopening the same widget many times must not report 300%.
+        WidgetEvent::factory()->create(['site_id' => $site->getKey(), 'type' => 'widget_loaded']);
+        WidgetEvent::factory()->count(3)->create(['site_id' => $site->getKey(), 'type' => 'launcher_open']);
+
+        $response = $this->actingAs($user)->getJson(route('widget.analytics', $site));
+
+        $response->assertOk()
+            ->assertJsonPath('events.loads', 1)
+            ->assertJsonPath('events.opens', 3)
+            ->assertJsonPath('events.engagement_rate', 100);
+    }
+
     public function test_analytics_counts_failed_answers_and_their_reasons(): void
     {
         $user = User::factory()->create();

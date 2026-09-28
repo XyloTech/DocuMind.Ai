@@ -101,8 +101,8 @@
             ] as $card)
                 <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-white/15 dark:bg-[#0d0f15]" title="{{ $card['hint'] }}">
                     <p class="text-xs font-medium text-slate-600 dark:text-slate-300">{{ $card['label'] }}</p>
-                    <p data-metric="totals.{{ $card['key'] }}" data-format="{{ $card['format'] }}"
-                       class="mt-1.5 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{{ $metrics['totals'][$card['key']] }}</p>
+                <p data-metric="totals.{{ $card['key'] }}" data-format="{{ $card['format'] }}"
+                   class="mt-1.5 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{{ $metrics['totals'][$card['key']] }}{{ ['ms' => ' ms', 'min' => ' min'][$card['format']] ?? '' }}</p>
                 </div>
             @endforeach
         </div>
@@ -235,7 +235,7 @@
 
                 <div class="mt-2 flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
                     <span>{{ \Illuminate\Support\Carbon::parse(array_key_first($metrics['daily']['days']))->format('d M') }}</span>
-                    <span>Response time · <span data-metric="totals.avg_response_ms" data-format="ms">{{ $metrics['totals']['avg_response_ms'] }}</span> avg</span>
+                    <span>Response time · <span data-metric="totals.avg_response_ms" data-format="ms">{{ $metrics['totals']['avg_response_ms'] }} ms</span> avg</span>
                     <span>{{ \Illuminate\Support\Carbon::parse(array_key_last($metrics['daily']['days']))->format('d M') }}</span>
                 </div>
             </div>

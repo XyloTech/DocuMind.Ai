@@ -461,7 +461,10 @@ class WidgetAnalyticsController extends Controller
             'closes' => $closes,
             'messages' => $messages,
             'suggestions' => $suggestions,
-            'engagement_rate' => $loads > 0 ? (int) round($opens / $loads * 100) : ($opens > 0 ? 100 : 0),
+            // One load can be opened and closed many times, so the raw ratio is a
+            // frequency rather than a rate. Report it as a share of loads, capped
+            // at 100, so the dashboard never shows "Open rate: 314%".
+            'engagement_rate' => min(100, $loads > 0 ? (int) round($opens / $loads * 100) : ($opens > 0 ? 100 : 0)),
             'unique_visitors' => (int) $unique,
         ];
     }
