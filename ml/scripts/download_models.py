@@ -24,23 +24,64 @@ EMBEDDING_FILES = [
 
 DOWNLOAD_ENDPOINT = os.getenv("ML_DOWNLOAD_ENDPOINT", os.getenv("HF_ENDPOINT", "https://huggingface.co")).rstrip("/")
 
+# Hugging Face rate-limits anonymous downloads from data centre addresses, and
+# a cold Cloud Run instance has nothing cached yet, so a single 429 used to
+# kill the container before the server ever started.
+RETRY_STATUSES = {429, 500, 502, 503, 504}
+MAX_ATTEMPTS = 8
+
 
 def human(size: float) -> str:
     return f"{size / 1048576:.1f} MB"
 
 
+def request_with_retry(method: str, url: str, **kwargs) -> requests.Response:
+    """Repeat a request that was throttled or failed, backing off each time."""
+    delay = 5.0
+    response: requests.Response | None = None
+    failure: requests.RequestException | None = None
+
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            response = requests.request(method, url, allow_redirects=True, **kwargs)
+        except requests.RequestException as exception:
+            response = None
+            failure = exception
+        else:
+            if response.status_code not in RETRY_STATUSES:
+                return response
+            failure = None
+
+        if attempt == MAX_ATTEMPTS:
+            break
+
+        print(f"  retry {attempt}/{MAX_ATTEMPTS - 1} in {delay:.0f}s after {url}", flush=True)
+        time.sleep(delay)
+        delay = min(delay * 2, 60.0)
+
+    if response is not None:
+        response.raise_for_status()
+
+    raise failure if failure is not None else RuntimeError(f"could not fetch {url}")
+
+
 def fetch_json(url: str) -> dict:
-    response = requests.get(url, timeout=60, allow_redirects=True)
-    response.raise_for_status()
-    return response.json()
+    return request_with_retry("GET", url, timeout=60).json()
 
 
 def download_file(url: str, target: Path) -> None:
     """Stream a file to disk, resuming and skipping work already done."""
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    if target.exists():
-        head = requests.head(url, timeout=60, allow_redirects=True)
+    if target.exists() and target.stat().st_size > 0:
+        try:
+            head = request_with_retry("HEAD", url, timeout=60)
+        except requests.RequestException as exception:
+            # The weights are already here: a throttled upstream must not stop
+            # the container from booting with its cached copy.
+            print(f"  cached  {target.name} ({human(target.stat().st_size)}, unverified: {exception})", flush=True)
+            return
+
         expected = int(head.headers.get("content-length", 0))
 
         if expected and target.stat().st_size >= expected:
@@ -51,8 +92,7 @@ def download_file(url: str, target: Path) -> None:
     offset = partial.stat().st_size if partial.exists() else 0
 
     headers = {"Range": f"bytes={offset}-"} if offset else {}
-    response = requests.get(url, stream=True, timeout=120, headers=headers, allow_redirects=True)
-    response.raise_for_status()
+    response = request_with_retry("GET", url, stream=True, timeout=120, headers=headers)
 
     mode = "ab" if offset and response.status_code == 206 else "wb"
     if mode == "wb":
@@ -76,11 +116,23 @@ def download_file(url: str, target: Path) -> None:
 
 def seed_embedding_cache() -> None:
     """Pre-populate the Hugging Face cache so fastembed never hits the network."""
+    cache_root = MODEL_DIR / "fastembed"
+    repo_dir = cache_root / ("models--" + EMBEDDING_REPO.replace("/", "--"))
+    snapshots = repo_dir / "snapshots"
+
+    # An already-populated snapshot (baked into the image or copied into the
+    # model volume) needs no upstream call at all — not even for the revision.
+    if snapshots.is_dir():
+        for candidate in sorted(snapshots.iterdir()):
+            if candidate.is_dir() and all((candidate / name).is_file() for name in EMBEDDING_FILES):
+                (repo_dir / "refs").mkdir(parents=True, exist_ok=True)
+                (repo_dir / "refs" / "main").write_text(candidate.name, encoding="utf-8")
+                print(f"  cached  embedding model snapshot {candidate.name}", flush=True)
+                return
+
     info = fetch_json(f"{DOWNLOAD_ENDPOINT}/api/models/{EMBEDDING_REPO}")
     revision = info["sha"]
 
-    cache_root = MODEL_DIR / "fastembed"
-    repo_dir = cache_root / ("models--" + EMBEDDING_REPO.replace("/", "--"))
     snapshot = repo_dir / "snapshots" / revision
 
     (repo_dir / "refs").mkdir(parents=True, exist_ok=True)

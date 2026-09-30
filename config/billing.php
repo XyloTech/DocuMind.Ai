@@ -44,4 +44,36 @@ return [
 
     'registration_enabled' => (bool) env('BILLING_REGISTRATION_ENABLED', true),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Credit Packs
+    |--------------------------------------------------------------------------
+    |
+    | Sellable credit top-ups, sold through Razorpay Checkout. Keys are the
+    | pack id stored on the payment row; "amount" is in minor units (paise
+    | for INR, cents otherwise) because that is the only unit Razorpay's
+    | Orders API accepts. Entry prices are placeholders — tune them freely.
+    |
+    */
+
+    'currency' => env('BILLING_CURRENCY', 'INR'),
+
+    'packs' => [
+        'starter' => [
+            'name' => 'Starter',
+            'credits' => 100,
+            'amount' => 19900,
+        ],
+        'growth' => [
+            'name' => 'Growth',
+            'credits' => 500,
+            'amount' => 79900,
+        ],
+        'scale' => [
+            'name' => 'Scale',
+            'credits' => 2000,
+            'amount' => 249900,
+        ],
+    ],
+
 ];

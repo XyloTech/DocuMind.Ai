@@ -22,10 +22,19 @@
             </div>
         </div>
 
-        <div class="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-xs dark:border-white/10 dark:bg-white/5 dark:text-slate-600">
-            <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-            <span class="font-bold text-slate-900 dark:text-white">{{ $user->credits }}</span>
-            {{ \Illuminate\Support\Str::plural('credit', $user->credits) }} remaining
+        <div class="flex flex-wrap items-center gap-2">
+            <div class="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-xs dark:border-white/10 dark:bg-white/5 dark:text-slate-600">
+                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                <span class="font-bold text-slate-900 dark:text-white">{{ $user->credits }}</span>
+                {{ \Illuminate\Support\Str::plural('credit', $user->credits) }} remaining
+            </div>
+            <a href="{{ route('billing.index') }}" class="btn btn-secondary inline-flex items-center gap-2">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect width="20" height="14" x="2" y="5" rx="2"/>
+                    <line x1="2" x2="22" y1="10" y2="10"/>
+                </svg>
+                Buy credits
+            </a>
         </div>
     </div>
 

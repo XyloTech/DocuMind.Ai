@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\FirebaseSessionController;
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
@@ -32,6 +33,12 @@ Route::middleware('guest')->group(function () {
 // paste into their own sites, so it lives outside the authenticated area.
 Route::get('/widget.js', WidgetScriptController::class)->name('widget.script');
 
+// Razorpay calls this from its own servers: no session, no CSRF token, so it
+// sits with the public routes and authenticates on the body signature alone.
+Route::post('/webhooks/razorpay', [BillingController::class, 'webhook'])
+    ->middleware('throttle:razorpay-webhook')
+    ->name('razorpay.webhook');
+
 // The privacy notice is readable before an account exists, so it sits with the
 // other public routes rather than behind auth.
 Route::get('/privacy-policy', [PrivacyController::class, 'policy'])->name('privacy.policy');
@@ -39,6 +46,16 @@ Route::get('/privacy-policy', [PrivacyController::class, 'policy'])->name('priva
 Route::middleware(['auth', 'active', 'workspace'])->group(function (): void {
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::prefix('billing')->name('billing.')->group(function (): void {
+        Route::get('/', [BillingController::class, 'index'])->name('index');
+        Route::post('/checkout', [BillingController::class, 'checkout'])
+            ->middleware('throttle:billing')
+            ->name('checkout');
+        Route::post('/verify', [BillingController::class, 'verify'])
+            ->middleware('throttle:billing')
+            ->name('verify');
+    });
 
     Route::post('/documents', [DocumentController::class, 'store'])
         ->middleware('throttle:uploads')

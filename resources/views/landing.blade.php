@@ -365,9 +365,9 @@
                             poster="{{ asset('logo.png') }}"
                             aria-label="How {{ config('app.name') }} works: uploading knowledge, configuring the assistant, embedding the widget, and handling a customer conversation"
                         >
-                            <source src="{{ asset('videos/how-it-works.mp4') }}" type="video/mp4">
+                            <source src="{{ config('app.demo_video_url') ?: asset('videos/how-it-works.mp4') }}" type="video/mp4">
                             Your browser doesn't support HTML5 video —
-                            <a href="{{ asset('videos/how-it-works.mp4') }}">download the walkthrough</a> instead.
+                            <a href="{{ config('app.demo_video_url') ?: asset('videos/how-it-works.mp4') }}">download the walkthrough</a> instead.
                         </video>
 
                         {{-- Floating support moments around the tour --}}

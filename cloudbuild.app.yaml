@@ -1,0 +1,15 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-app
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/documind/app:latest
+      - -f
+      - Dockerfile.cloudrun
+      - .
+images:
+  - us-central1-docker.pkg.dev/$PROJECT_ID/documind/app:latest
+timeout: '5400s'
+options:
+  machineType: E2_HIGHCPU_8

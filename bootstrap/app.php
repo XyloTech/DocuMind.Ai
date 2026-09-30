@@ -16,9 +16,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Cloud Run terminates TLS in front of the container, so without this
+        // every generated URL (assets, canonical links, redirects) would come
+        // out as http:// and be blocked as mixed content.
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'active' => EnsureUserIsActive::class,
             'workspace' => EnsureWorkspaceContext::class,
+        ]);
+
+        // The Razorpay webhook carries no session cookie, so there is no CSRF
+        // token to match; its HMAC signature over the raw body is the
+        // authenticity check instead.
+        $middleware->preventRequestForgery(except: [
+            'webhooks/razorpay',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

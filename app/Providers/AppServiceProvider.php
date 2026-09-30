@@ -118,6 +118,17 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(20)->by('chat:'.($request->user()?->getKey() ?? $request->ip()));
         });
 
+        // Order creation hits Razorpay's API, so keep a human clicking
+        // "buy" well inside a sane budget and a scripted abuser outside it.
+        RateLimiter::for('billing', function (Request $request): Limit {
+            return Limit::perMinute(15)->by('billing:'.($request->user()?->getKey() ?? $request->ip()));
+        });
+
+        // Razorpay may retry a webhook several times for the same event, so
+        // this budget is generous but still bounded by source IP.
+        RateLimiter::for('razorpay-webhook', fn (Request $request): Limit => Limit::perMinute(60)->by('razorpay-webhook:'.$request->ip()),
+        );
+
         // Public widget traffic: bounded per visitor IP *and* per site so one
         // noisy page cannot drain a customer's monthly quota in minutes.
         RateLimiter::for('widget', function (Request $request): Limit {

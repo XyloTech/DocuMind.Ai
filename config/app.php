@@ -99,6 +99,14 @@ return [
 
     'key' => env('APP_KEY'),
 
+    /*
+    | Public URL of the landing page walkthrough video. The recording is far
+    | larger than Cloud Run's 32 MB response limit, so it is served from
+    | Cloud Storage instead of the app. Falls back to the local copy.
+    */
+
+    'demo_video_url' => env('DEMO_VIDEO_URL'),
+
     'previous_keys' => [
         ...array_filter(
             explode(',', (string) env('APP_PREVIOUS_KEYS', ''))

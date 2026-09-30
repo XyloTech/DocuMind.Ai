@@ -109,8 +109,15 @@
                             @endcan
 
                             <a
+                                href="{{ route('billing.index') }}"
+                                class="order-5 rounded-lg px-3 py-1.5 text-sm font-medium transition {{ request()->routeIs('billing.*') ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-white' }}"
+                            >
+                                Billing
+                            </a>
+
+                            <a
                                 href="{{ route('settings.privacy') }}"
-                                class="order-5 rounded-lg px-3 py-1.5 text-sm font-medium transition {{ request()->routeIs('settings.*') ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-white' }}"
+                                class="order-6 rounded-lg px-3 py-1.5 text-sm font-medium transition {{ request()->routeIs('settings.*') ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-white' }}"
                             >
                                 Privacy
                             </a>
@@ -167,6 +174,13 @@
                                         <span data-credits-count>{{ auth()->user()->credits }} {{ \Illuminate\Support\Str::plural('credit', auth()->user()->credits) }}</span> available
                                     </span>
                                 </div>
+
+                                <a
+                                    href="{{ route('billing.index') }}"
+                                    class="block px-4 py-2 text-left text-sm text-slate-600 transition hover:bg-slate-50 dark:text-slate-600 dark:hover:bg-white/5"
+                                >
+                                    Billing &amp; credits
+                                </a>
 
                                 <a
                                     href="{{ route('settings.privacy') }}"
@@ -245,6 +259,16 @@
                                 Admin
                             </a>
                         @endcan
+                        <a
+                            href="{{ route('billing.index') }}"
+                            class="order-5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs('billing.*') ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-500 dark:hover:bg-white/5' }}"
+                        >
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect width="20" height="14" x="2" y="5" rx="2"/>
+                                <line x1="2" x2="22" y1="10" y2="10"/>
+                            </svg>
+                            Billing
+                        </a>
                     </nav>
 
                     <div class="border-t border-slate-200/80 p-3 dark:border-white/10">

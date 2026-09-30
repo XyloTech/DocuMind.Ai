@@ -32,10 +32,21 @@ ARG LLAMA_CPP_VERSION=0.3.19
 
 COPY wheels ./wheels
 
+# The upstream CPU wheel index is the fast path, but its linux_x86_64 wheels
+# are linked against musl and therefore fail to load in this Debian image
+# (libc.musl-x86_64.so.1: cannot open shared object file). The import check
+# below catches that and falls back to compiling llama.cpp against glibc,
+# which costs ~30 minutes of CPU time on every image build. The pinned
+# version is identical either way; only the compiler that produced it differs.
 RUN if ls wheels/*.whl >/dev/null 2>&1; then \
         pip install wheels/*.whl; \
+    elif pip install "llama-cpp-python==${LLAMA_CPP_VERSION}" \
+            --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu \
+        && python -c "import llama_cpp"; then \
+        echo "prebuilt CPU wheel loads"; \
     else \
-        pip install "llama-cpp-python==${LLAMA_CPP_VERSION}"; \
+        pip install --force-reinstall --no-binary llama-cpp-python \
+            "llama-cpp-python==${LLAMA_CPP_VERSION}"; \
     fi
 
 COPY app ./app

@@ -248,7 +248,7 @@ class ChatController extends Controller
         if ($user->credits < $cost || ! $this->ledger->deduct($user, $cost)) {
             return $this->reject(
                 $request,
-                'You are out of credits. Ask your administrator for a top-up to keep chatting.',
+                'You are out of credits. Top up from the Billing page to keep chatting.',
                 402,
             );
         }
@@ -371,7 +371,7 @@ class ChatController extends Controller
         $cost = max(0, (int) config('billing.credits_per_message', 1));
 
         if ($user->credits < $cost || ! $this->ledger->deduct($user, $cost)) {
-            return $this->reject($request, 'You are out of credits. Ask your administrator for a top-up.', 402);
+            return $this->reject($request, 'You are out of credits. Top up from the Billing page to keep chatting.', 402);
         }
 
         try {

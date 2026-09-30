@@ -1,0 +1,24 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-app
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/documind/app:latest
+      - -f
+      - Dockerfile.cloudrun
+      - .
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-ml
+    waitFor: ['-']
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/documind/ml:latest
+      - ./ml
+images:
+  - us-central1-docker.pkg.dev/$PROJECT_ID/documind/app:latest
+  - us-central1-docker.pkg.dev/$PROJECT_ID/documind/ml:latest
+timeout: '3600s'
+options:
+  machineType: E2_MEDIUM
