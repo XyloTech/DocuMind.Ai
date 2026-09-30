@@ -1,58 +1,95 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# DocuMind AI
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A document-aware customer-support platform: upload PDFs, ask questions in natural language, and get streaming answers grounded in your own documents — with an embeddable website widget, human handoff, credits billing and a staff admin panel on top.
 
-## About Laravel
+Built with **Laravel 13** (PHP 8.3+), **MariaDB 11.4** (vector search over chunks), **Vite 8 + Tailwind CSS**, and a self-hosted **llama.cpp** model service — no cloud LLM required.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## What's inside
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Knowledge ingestion** — upload PDFs, extract text (`smalot/pdfparser`), chunk, embed and index them in the background with a live progress bar.
+- **Internal chat workspace** — per-document Q&A with SSE token streaming, RAG citations, credit accounting, feedback and map-reduce document summaries (`/chats`).
+- **Embeddable widget** — a session-less support chatbot you paste into any site as a single `<script>` tag; public JSON/SSE API keyed by a `pk_…` site key, with analytics, leads and origin allow-listing (`/widget.js`, `/widget`).
+- **Human handoff** — asking to "speak with a human" in chat opens a one-to-one support conversation (`/support`) routed to the least-busy available agent, with an admin inbox to reply and resolve.
+- **Admin panel** (`/admin`) — overview, account management, knowledge review, conversation monitoring, support inbox, widgets, model settings and an audit log; every action is gated by role.
+- **Credits & billing** — per-message credit accounting with Razorpay checkout for top-ups (`/billing`).
+- **Notifications & privacy** — in-app notification centre with per-type preferences, plus consent, history export and account deletion (`/settings/privacy`).
+- **Roles** — `user`, `support`, `analyst`, `admin` (plus workspaces for team-level isolation).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Architecture at a glance
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+Browser ── Blade + Tailwind + Vite (SSE / polling)
+   │
+Laravel app (app/Http, app/Services, app/Jobs)
+   │  RAG: chunk + embed + hybrid retrieval (config/rag.php)
+   ├── MariaDB 11.4  (documents, chunks, chats, conversations, ledger …)
+   └── ml/ container (FastAPI + llama.cpp)
+         └── chat (Qwen2.5-3B) + embeddings (bge-small-en-v1.5), CPU or CUDA
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Queued workers (`queue`), a scheduler and the ML service run as separate Compose services alongside the app.
 
-## Contributing
+## Quick start (Docker)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```powershell
+Copy-Item .env.example .env     # set DB_HOST=db, ML_BASE_URL=http://ml:8090/v1
+docker compose run --rm app composer install
+docker compose run --rm app npm ci
+docker compose run --rm app npm run build
+docker compose up -d --build
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate --seed
+# open http://localhost:8000  (login is Google/Firebase — see SETUP.md §7)
+```
 
-## Code of Conduct
+Seeded local accounts (only when `APP_ENV=local`): `admin@documind.test` (admin) and `user@documind.test`.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+To run the model service on an NVIDIA GPU (optional):
 
-## Security Vulnerabilities
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build ml
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Full install, configuration, deployment and troubleshooting details live in **[SETUP.md](SETUP.md)**. Latency/GPU tuning notes live in **[LLM_PERFORMANCE_PLAN.md](LLM_PERFORMANCE_PLAN.md)**.
+
+## Development
+
+```bash
+docker compose up -d --build        # app, queue, scheduler, ml, db
+npm run dev                         # Vite HMR (or npm run build for production)
+docker compose exec app php artisan serve
+```
+
+### Tests & style
+
+Run inside the app container (host PHP may lack the SQLite extension):
+
+```bash
+docker exec documind_app php artisan test --compact   # full suite (315 tests)
+docker exec documind_app vendor/bin/pint --format agent  # code style
+```
+
+## Project layout
+
+| Path | Purpose |
+|---|---|
+| `app/Http/Controllers` | Web (`/`, `/documents`, `/chats`), admin (`/admin`), widget & widget API controllers |
+| `app/Services` | RAG retrieval, model clients, billing ledger, notifier, support inbox, audit |
+| `app/Jobs` | PDF extraction, chunking, embedding and indexing pipeline |
+| `app/Models` | Documents, chunks, chats, sites (widget), support conversations, ledger entries |
+| `resources/views` | Blade + Tailwind views (dashboard, admin panel, widget builder, support chat) |
+| `resources/js`, `vite*.config.js` | App bundle and standalone widget bundle |
+| `ml/` | llama.cpp/FastAPI model service (CPU + CUDA overlays) |
+| `routes/web.php`, `routes/api.php` | Routing |
+| `tests/Feature` | PHPUnit feature suite |
+| `.claude/skills`, `AGENTS.md` | Agent conventions and project skills for AI-assisted development |
+
+## Documentation
+
+- **[SETUP.md](SETUP.md)** — installation, every env key, roles/gates, deployment, backups, troubleshooting.
+- **[LLM_PERFORMANCE_PLAN.md](LLM_PERFORMANCE_PLAN.md)** — model serving, TTFT and GPU performance work.
+- **[AGENTS.md](AGENTS.md)** — conventions for AI coding agents working in this repo.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Proprietary — all rights reserved unless otherwise stated by the repository owner.

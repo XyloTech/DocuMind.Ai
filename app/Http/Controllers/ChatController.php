@@ -18,6 +18,8 @@ use App\Services\RAG\DocumentSummarizer;
 use App\Services\RAG\IntentClassifier;
 use App\Services\RAG\PromptBuilder;
 use App\Services\RAG\Retriever;
+use App\Services\Support\HandoffDetector;
+use App\Services\Support\SupportInbox;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -37,6 +39,13 @@ class ChatController extends Controller
      */
     private const string AUTO_TITLE = 'New chat';
 
+    /**
+     * What the assistant posts when the message asks for a person instead of
+     * the model. The turn costs no credit, so the wording is fixed rather
+     * than generated.
+     */
+    private const string HANDOFF_TEXT = "I've connected you with our support team. A specialist will reply in this chat — you can also keep the conversation going on the Support page.";
+
     public function __construct(
         private readonly Retriever $retriever,
         private readonly PromptBuilder $prompts,
@@ -44,6 +53,8 @@ class ChatController extends Controller
         private readonly CreditLedger $ledger,
         private readonly IntentClassifier $intents,
         private readonly DocumentSummarizer $summarizer,
+        private readonly HandoffDetector $handoffs,
+        private readonly SupportInbox $inbox,
     ) {}
 
     /**
@@ -234,6 +245,13 @@ class ChatController extends Controller
             );
         }
 
+        // Reaching a person must work even when the chat has no usable
+        // document, so the handoff is decided before the answerability and
+        // credit checks below — and it never charges for the turn.
+        if ($this->handoffs->wantsHuman($question)) {
+            return $this->handoff($request, $chat, $question);
+        }
+
         if (! $chat->isAnswerable()) {
             return $this->reject(
                 $request,
@@ -299,16 +317,7 @@ class ChatController extends Controller
             // never come back. Finish the work, then persist a terminal state.
             ignore_user_abort(true);
 
-            $emit = static function (string $event, array $data): void {
-                echo 'event: '.$event."\n";
-                echo 'data: '.json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n\n";
-
-                if (ob_get_level() > 0) {
-                    @ob_flush();
-                }
-
-                flush();
-            };
+            $emit = self::emitter();
 
             try {
                 // First byte of the stream: it flushes the headers and lets the
@@ -336,6 +345,72 @@ class ChatController extends Controller
 
                 $emit('error', ['message' => self::userFacingError()]);
             }
+        }, 200, [
+            'Content-Type' => 'text/event-stream; charset=utf-8',
+            'Cache-Control' => 'no-cache, no-transform',
+            'X-Accel-Buffering' => 'no',
+            'Connection' => 'keep-alive',
+        ]);
+    }
+
+    /**
+     * Answer a "put me in front of a person" message without touching the
+     * model: open (or reuse) the customer's support conversation, mirror the
+     * turn into the chat transcript and tell the browser where to continue.
+     */
+    private function handoff(Request $request, Chat $chat, string $question): Response
+    {
+        $user = $request->user();
+
+        $conversation = $this->inbox->start($user, $chat, $question);
+
+        $chat->messages()->create([
+            'role' => ChatRole::User,
+            'content' => $question,
+            'status' => MessageStatus::Complete,
+        ]);
+
+        $assistant = $chat->messages()->create([
+            'role' => ChatRole::Assistant,
+            'content' => self::HANDOFF_TEXT,
+            'status' => MessageStatus::Complete,
+            'credits_cost' => 0,
+        ]);
+
+        $chat->fill([
+            'title' => $chat->title === self::AUTO_TITLE ? $this->autoTitle($question) : $chat->title,
+            'last_message_at' => now(),
+        ])->save();
+
+        $chat->increment('message_count', 2);
+
+        $handoff = [
+            'conversation_id' => $conversation->getKey(),
+            'status' => $conversation->status->value,
+            'agent' => $conversation->agent?->name,
+            'url' => route('support.index'),
+        ];
+
+        if (! config('rag.stream_enabled')) {
+            return response()->json([
+                'message' => $assistant->fresh(),
+                'credits' => (int) $user->credits,
+                'handoff' => $handoff,
+            ]);
+        }
+
+        return response()->stream(function () use ($assistant, $user, $handoff): void {
+            ignore_user_abort(true);
+
+            $emit = self::emitter();
+
+            $emit('status', ['phase' => AnswerPhase::Reading->value]);
+            $emit('delta', ['text' => self::HANDOFF_TEXT]);
+            $emit('handoff', $handoff);
+            $emit('done', [
+                'message_id' => $assistant->getKey(),
+                'credits' => (int) $user->credits,
+            ]);
         }, 200, [
             'Content-Type' => 'text/event-stream; charset=utf-8',
             'Cache-Control' => 'no-cache, no-transform',
@@ -590,6 +665,27 @@ class ChatController extends Controller
             ->orderByDesc('last_message_at')
             ->orderByDesc('id')
             ->limit(50);
+    }
+
+    /**
+     * Write one Server-Sent Event frame and push it out immediately; a
+     * buffered frame is indistinguishable from a stalled model to the
+     * watchdog in the browser.
+     *
+     * @return callable(string, array<string, mixed>): void
+     */
+    private static function emitter(): callable
+    {
+        return static function (string $event, array $data): void {
+            echo 'event: '.$event."\n";
+            echo 'data: '.json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n\n";
+
+            if (ob_get_level() > 0) {
+                @ob_flush();
+            }
+
+            flush();
+        };
     }
 
     /**

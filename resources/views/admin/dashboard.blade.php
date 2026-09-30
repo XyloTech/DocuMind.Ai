@@ -9,6 +9,7 @@
             ['key' => 'accounts', 'label' => 'Accounts', 'ability' => 'view-admin-accounts'],
             ['key' => 'knowledge', 'label' => 'Knowledge', 'ability' => 'view-admin-support-data'],
             ['key' => 'conversations', 'label' => 'Conversations', 'ability' => 'view-admin-support-data'],
+            ['key' => 'support', 'label' => 'Support inbox', 'ability' => 'view-admin-support-data'],
             ['key' => 'widgets', 'label' => 'Widgets', 'ability' => 'view-admin-support-data'],
             ['key' => 'models', 'label' => 'Model access', 'ability' => 'manage-admin'],
             ['key' => 'audit', 'label' => 'Audit log', 'ability' => 'view-admin-audit'],
@@ -205,7 +206,7 @@
                 <thead class="bg-slate-50 text-[10px] font-semibold uppercase text-slate-500 dark:bg-white/[0.03] dark:text-slate-400"><tr><th class="px-4 py-3">Source</th><th class="px-4 py-3">Account</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Sections</th><th class="px-4 py-3">Size</th><th class="px-4 py-3">Activity</th></tr></thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-white/5">
                     @forelse ($knowledge as $source)
-                        <tr><td class="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{{ $source->filename }}</td><td class="px-4 py-3 text-slate-500">Account #{{ $source->user_id }}</td><td class="px-4 py-3">{{ $source->status->label() }}</td><td class="px-4 py-3 tabular-nums">{{ number_format($source->chunk_count) }}</td><td class="px-4 py-3">{{ \Illuminate\Support\Number::fileSize($source->size_bytes) }}</td><td class="px-4 py-3 text-slate-500">{{ $source->processed_at?->diffForHumans() ?? $source->created_at?->diffForHumans() }}</td></tr>
+                        <tr><td class="px-4 py-3 font-medium text-slate-800 dark:text-slate-200"><a class="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400" href="{{ route('admin.documents.show', $source) }}">{{ $source->filename }}</a></td><td class="px-4 py-3 text-slate-500">Account #{{ $source->user_id }}</td><td class="px-4 py-3">{{ $source->status->label() }}</td><td class="px-4 py-3 tabular-nums">{{ number_format($source->chunk_count) }}</td><td class="px-4 py-3">{{ \Illuminate\Support\Number::fileSize($source->size_bytes) }}</td><td class="px-4 py-3 text-slate-500">{{ $source->processed_at?->diffForHumans() ?? $source->created_at?->diffForHumans() }}</td></tr>
                     @empty
                         <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No knowledge sources found.</td></tr>
                     @endforelse
@@ -228,6 +229,34 @@
                 </tbody></table><div class="border-t border-slate-200 px-4 py-3 dark:border-white/10">{{ $widgetConversations->links() }}</div>
             </section>
         </div>
+    @elseif ($activeTab === 'support')
+        <section class="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#0d0f15]">
+            <div class="border-b border-slate-200 px-4 py-3 dark:border-white/10">
+                <h2 class="text-sm font-bold text-slate-900 dark:text-white">Human support requests</h2>
+                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">One-to-one conversations opened from the dashboard chat. Open a conversation to read the transcript and reply.</p>
+            </div>
+            <table class="w-full min-w-[760px] text-left text-xs">
+                <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 dark:bg-white/[0.03]">
+                    <tr><th class="px-4 py-3">Conversation</th><th class="px-4 py-3">Account</th><th class="px-4 py-3">Agent</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Messages</th><th class="px-4 py-3">Last activity</th><th class="px-4 py-3">Action</th></tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-white/5">
+                    @forelse ($supportConversations as $support)
+                        <tr>
+                            <td class="px-4 py-3 font-medium">Support conversation #{{ $support->id }}</td>
+                            <td class="px-4 py-3">Account #{{ $support->user_id }}</td>
+                            <td class="px-4 py-3 text-slate-500">{{ $support->agent?->name ?? 'Unassigned' }}</td>
+                            <td class="px-4 py-3">{{ $support->status->label() }}</td>
+                            <td class="px-4 py-3 tabular-nums">{{ $support->messages_count }}</td>
+                            <td class="px-4 py-3 text-slate-500">{{ $support->last_message_at?->diffForHumans() ?? 'No activity' }}</td>
+                            <td class="px-4 py-3"><a href="{{ route('admin.support.show', $support) }}" class="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">Open</a></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7" class="px-4 py-8 text-center text-slate-500">No human support requests yet.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+            <div class="border-t border-slate-200 px-4 py-3 dark:border-white/10">{{ $supportConversations->links() }}</div>
+        </section>
     @elseif ($activeTab === 'widgets')
         <section class="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#0d0f15]">
             <table class="w-full min-w-[800px] text-left text-xs"><thead class="bg-slate-50 text-[10px] uppercase text-slate-500 dark:bg-white/[0.03]"><tr><th class="px-4 py-3">Assistant</th><th class="px-4 py-3">Account</th><th class="px-4 py-3">Domain</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Knowledge</th><th class="px-4 py-3">Conversations</th><th class="px-4 py-3">Quota</th></tr></thead><tbody class="divide-y divide-slate-100 dark:divide-white/5">

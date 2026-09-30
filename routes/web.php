@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\DocumentController as AdminDocumentController;
+use App\Http\Controllers\Admin\SupportController as AdminSupportController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\FirebaseSessionController;
 use App\Http\Controllers\BillingController;
@@ -9,6 +11,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PrivacyController;
+use App\Http\Controllers\SupportController;
 use App\Http\Controllers\Widget\SiteController;
 use App\Http\Controllers\Widget\WidgetAnalyticsController;
 use App\Http\Controllers\Widget\WidgetLeadsController;
@@ -101,6 +104,19 @@ Route::middleware(['auth', 'active', 'workspace'])->group(function (): void {
         Route::post('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');
     });
 
+    // One-to-one channel with the support team: opened from the dashboard
+    // chat when the assistant detects a handoff request, or directly here.
+    Route::prefix('support')->name('support.')->group(function (): void {
+        Route::get('/', [SupportController::class, 'index'])->name('index');
+        Route::post('/messages', [SupportController::class, 'store'])
+            ->middleware('throttle:chat')
+            ->name('messages');
+        Route::get('/poll', [SupportController::class, 'poll'])
+            ->middleware('throttle:notifications')
+            ->name('poll');
+        Route::post('/close', [SupportController::class, 'close'])->name('close');
+    });
+
     Route::prefix('widget')->name('widget.')->group(function (): void {
         Route::get('/', [SiteController::class, 'index'])->name('index');
         Route::post('/', [SiteController::class, 'store'])->name('store');
@@ -134,5 +150,23 @@ Route::middleware(['auth', 'active', 'workspace'])->group(function (): void {
         Route::post('/model-settings', [AdminDashboardController::class, 'updateModelSettings'])
             ->middleware('can:manage-admin')
             ->name('model-settings.update');
+
+        Route::prefix('support')->name('support.')->middleware('can:view-admin-support-data')->group(function (): void {
+            Route::get('/{supportConversation}', [AdminSupportController::class, 'show'])->name('show');
+            Route::post('/{supportConversation}/reply', [AdminSupportController::class, 'reply'])->name('reply');
+            Route::post('/{supportConversation}/resolve', [AdminSupportController::class, 'resolve'])->name('resolve');
+        });
+
+        Route::prefix('documents')->name('documents.')->group(function (): void {
+            Route::get('/{document}', [AdminDocumentController::class, 'show'])
+                ->middleware('can:view-admin-support-data')
+                ->name('show');
+            Route::patch('/{document}', [AdminDocumentController::class, 'update'])
+                ->middleware('can:manage-admin')
+                ->name('update');
+            Route::delete('/{document}', [AdminDocumentController::class, 'destroy'])
+                ->middleware('can:manage-admin')
+                ->name('destroy');
+        });
     });
 });

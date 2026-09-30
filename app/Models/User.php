@@ -163,6 +163,26 @@ class User extends Authenticatable
         return $this->hasMany(Chat::class);
     }
 
+    /**
+     * Human-support conversations this account opened.
+     *
+     * @return HasMany<SupportConversation, $this>
+     */
+    public function supportConversations(): HasMany
+    {
+        return $this->hasMany(SupportConversation::class, 'user_id');
+    }
+
+    /**
+     * Human-support conversations assigned to this account as the agent.
+     *
+     * @return HasMany<SupportConversation, $this>
+     */
+    public function assignedSupportConversations(): HasMany
+    {
+        return $this->hasMany(SupportConversation::class, 'agent_id');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === UserRole::Admin;

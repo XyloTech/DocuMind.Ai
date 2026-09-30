@@ -9,8 +9,10 @@ use App\Models\AdminAuditLog;
 use App\Models\Chat;
 use App\Models\Document;
 use App\Models\Site;
+use App\Models\SupportConversation;
 use App\Models\User;
 use App\Models\WidgetConversation;
+use App\Services\AdminAudit;
 use App\Services\Notifier;
 use App\Services\Settings;
 use App\Support\ModelBrand;
@@ -23,17 +25,19 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Throwable;
 
 class DashboardController extends Controller
 {
-    public function __construct(private readonly Settings $settings) {}
+    public function __construct(
+        private readonly Settings $settings,
+        private readonly AdminAudit $audit,
+    ) {}
 
     public function __invoke(Request $request): View
     {
         $actor = $request->user();
         $activeTab = (string) $request->query('tab', 'overview');
-        $tabs = ['overview', 'accounts', 'knowledge', 'conversations', 'widgets', 'audit', 'models'];
+        $tabs = ['overview', 'accounts', 'knowledge', 'conversations', 'support', 'widgets', 'audit', 'models'];
 
         abort_unless(in_array($activeTab, $tabs, true), 404);
 
@@ -43,6 +47,7 @@ class DashboardController extends Controller
         $accounts = null;
         $knowledge = null;
         $chats = null;
+        $supportConversations = null;
         $widgetConversations = null;
         $sites = null;
         $auditLogs = null;
@@ -57,6 +62,7 @@ class DashboardController extends Controller
             ['label' => 'Suspended accounts', 'value' => User::query()->where('is_banned', true)->count()],
             ['label' => 'Knowledge sources', 'value' => Document::query()->count()],
             ['label' => 'Support chats', 'value' => Chat::query()->count()],
+            ['label' => 'Human support requests', 'value' => SupportConversation::query()->count()],
             ['label' => 'Website assistants', 'value' => Site::query()->count()],
             ['label' => 'Widget conversations', 'value' => WidgetConversation::query()->count()],
             ['label' => 'Credits in circulation', 'value' => (int) User::query()->sum('credits')],
@@ -153,6 +159,17 @@ class DashboardController extends Controller
                 ->orderByDesc('id')
                 ->paginate(20, ['*'], 'widget_page')
                 ->withQueryString();
+        } elseif ($activeTab === 'support') {
+            Gate::authorize('view-admin-support-data');
+            $this->audit->record($actor, null, 'support.inbox_viewed', 'Viewed the human support inbox');
+
+            $supportConversations = SupportConversation::query()
+                ->with(['user:id,name', 'agent:id,name'])
+                ->withCount('messages')
+                ->orderByDesc('last_message_at')
+                ->orderByDesc('id')
+                ->paginate(20, ['*'], 'support_page')
+                ->withQueryString();
         } elseif ($activeTab === 'widgets') {
             Gate::authorize('view-admin-support-data');
             $this->record($actor, null, 'widgets.viewed', 'Viewed website assistant configuration metadata');
@@ -195,6 +212,7 @@ class DashboardController extends Controller
             'sites' => $sites,
             'stats' => $stats,
             'statusFilter' => $statusFilter,
+            'supportConversations' => $supportConversations,
             'widgetConversations' => $widgetConversations,
         ]);
     }
@@ -425,14 +443,7 @@ class DashboardController extends Controller
 
     private function record(User $actor, ?User $subject, string $action, string $summary, array $details = []): void
     {
-        AdminAuditLog::query()->create([
-            'actor_id' => $actor->getKey(),
-            'subject_user_id' => $subject?->getKey(),
-            'action' => $action,
-            'summary' => $summary,
-            'details' => $details === [] ? null : $details,
-            'created_at' => now(),
-        ]);
+        $this->audit->record($actor, $subject, $action, $summary, $details);
     }
 
     private function maskEmail(string $email): string

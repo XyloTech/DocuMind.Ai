@@ -1529,6 +1529,10 @@ function initChat() {
                 assistantBubble.setMarkdown(data.message?.content ?? '');
                 renderSources(assistantBubble, data.message?.sources ?? []);
                 updateCredits(data.credits);
+
+                if (data.handoff) {
+                    showHandoffNotice(data.handoff);
+                }
             } else {
                 await readEvents(response, assistantBubble, startTime, () => clearTimeout(watchdog));
             }
@@ -2074,6 +2078,44 @@ function updateCredits(credits) {
 }
 
 /**
+ * Banner shown after the assistant hands the chat over to a person: points
+ * at the one-to-one support conversation the server just opened. One per
+ * transcript, so a second handoff in the same chat does not stack banners.
+ *
+ * @param  {{url?: string, agent?: string|null}}  payload
+ */
+function showHandoffNotice(payload) {
+    if (!payload?.url) {
+        return;
+    }
+
+    const transcript = document.querySelector('[data-transcript]');
+
+    if (!transcript || transcript.querySelector('[data-handoff-notice]')) {
+        return;
+    }
+
+    const notice = document.createElement('div');
+    notice.dataset.handoffNotice = '';
+    notice.className =
+        'mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-[13px] leading-relaxed text-indigo-900 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-100';
+
+    const text = document.createElement('span');
+    text.className = 'flex-1 min-w-0';
+    text.textContent = payload.agent
+        ? `${payload.agent} from the support team is joining this chat.`
+        : 'A support specialist has been notified and will reply here shortly.';
+
+    const link = document.createElement('a');
+    link.href = payload.url;
+    link.className = 'shrink-0 font-semibold underline underline-offset-2';
+    link.textContent = 'Open support chat';
+
+    notice.append(text, link);
+    transcript.firstElementChild?.append(notice);
+}
+
+/**
  * Read the SSE reply into the bubble.
  *
  * @param  (() => void)|null  onFirstByte  fired once the stream is confirmed alive
@@ -2165,6 +2207,11 @@ async function readEvents(response, bubble, startTime, onFirstByte = null) {
                 updateCredits(payload.credits);
             }
 
+            return;
+        }
+
+        if (event === 'handoff') {
+            showHandoffNotice(payload);
             return;
         }
 
