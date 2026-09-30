@@ -42,9 +42,6 @@ services:
     volumes:
       - .:/var/www/html
     working_dir: /var/www/html
-    depends_on:
-      db:
-        condition: service_healthy
     command: php artisan schedule:work
 
   ml:
@@ -58,11 +55,15 @@ services:
     environment:
       MODEL_DIR: /models
       EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
-      CHAT_MODEL: Qwen/Qwen2.5-3B-Instruct-GGUF
-      CHAT_MODEL_FILE: qwen2.5-3b-instruct-q4_k_m.gguf
+      # 1.5B q4_k_m instead of 3B: ~2x faster token generation on CPU, which
+      # is the only thing standing between us and sub-1s first tokens. Bump
+      # back to Qwen/Qwen2.5-3B-Instruct-GGUF for quality at the cost of speed.
+      CHAT_MODEL: Qwen/Qwen2.5-1.5B-Instruct-GGUF
+      CHAT_MODEL_FILE: qwen2.5-1.5b-instruct-q4_k_m.gguf
       LLM_CTX: "4096"
       LLM_GPU_LAYERS: "0"
       LLM_N_THREADS: "0"
+      LLM_N_BATCH: "1024"
       LLM_MAX_TOKENS: "768"
       HF_ENDPOINT: ${HF_ENDPOINT:-https://huggingface.co}
     volumes:

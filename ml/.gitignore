@@ -1,0 +1,5 @@
+# CUDA wheels are ~1.3 GB and never belong in git (see wheels/README.txt).
+wheels/*.whl
+
+__pycache__/
+*.py[cod]

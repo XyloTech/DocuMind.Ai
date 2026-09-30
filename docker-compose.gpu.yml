@@ -19,11 +19,14 @@ services:
     environment:
       MODEL_DIR: /models
       EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
+      # With a GPU the 3B model is fast enough to keep, unlike the CPU-only
+      # compose file, which pins the 1.5B for its ~2x token rate.
       CHAT_MODEL: Qwen/Qwen2.5-3B-Instruct-GGUF
       CHAT_MODEL_FILE: qwen2.5-3b-instruct-q4_k_m.gguf
       LLM_CTX: "4096"
       LLM_GPU_LAYERS: "-1"
       LLM_N_THREADS: "0"
+      LLM_N_BATCH: "1024"
       LLM_MAX_TOKENS: "768"
       HF_ENDPOINT: ${HF_ENDPOINT:-https://huggingface.co}
 

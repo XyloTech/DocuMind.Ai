@@ -38,8 +38,26 @@ COPY wheels ./wheels
 # below catches that and falls back to compiling llama.cpp against glibc,
 # which costs ~30 minutes of CPU time on every image build. The pinned
 # version is identical either way; only the compiler that produced it differs.
+#
+# GGML_NATIVE=ON (llama.cpp's build default, pinned here so an upstream change
+# cannot silently regress it) emits AVX2/NEON kernels instead of generic ones —
+# worth 10-30% on both prompt eval and token generation. It only applies to
+# the source-build path; the prebuilt wheels are what they are.
+ARG CMAKE_ARGS="-DGGML_NATIVE=ON"
+
+# The CUDA wheel links dynamically against libcudart.so.12/libcublas.so.12,
+# which the slim base image does not ship; the pip nvidia-* packages provide
+# them. libcuda.so.1 itself is injected by the NVIDIA container toolkit at
+# runtime, so it must not be installed here. Nonexistent directories on
+# LD_LIBRARY_PATH are ignored, so this is harmless in the CPU build.
+ENV LD_LIBRARY_PATH=/usr/local/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:/usr/local/lib/python3.11/site-packages/nvidia/cublas/lib
+
 RUN if ls wheels/*.whl >/dev/null 2>&1; then \
-        pip install wheels/*.whl; \
+        pip install wheels/*.whl \
+            nvidia-cuda-runtime-cu12 nvidia-cublas-cu12 \
+        && missing="$(ldd /usr/local/lib/python3.11/site-packages/llama_cpp/lib/libllama.so \
+            | grep 'not found' | grep -v 'libcuda.so.1' || true)" \
+        && [ -z "$missing" ] || { echo "missing CUDA libs: $missing"; exit 1; }; \
     elif pip install "llama-cpp-python==${LLAMA_CPP_VERSION}" \
             --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu \
         && python -c "import llama_cpp"; then \

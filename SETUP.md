@@ -112,12 +112,17 @@ Other notable pieces:
 - `GET /health` — status incl. embedding model, chat model, GPU layers, load errors.
 - `GET /v1/models`, `POST /v1/embeddings`, `POST /v1/chat/completions` (SSE streaming supported).
 - Downloads models at start-up: `python scripts/download_models.py && uvicorn app.main:app --host 0.0.0.0 --port 8090`.
-- Defaults (compose env): `EMBEDDING_MODEL=BAAI/bge-small-en-v1.5`, `CHAT_MODEL=Qwen/Qwen2.5-3B-Instruct-GGUF`,
-  `LLM_CTX=4096`, `LLM_MAX_TOKENS=768`, `LLM_GPU_LAYERS=0` (CPU), `HF_ENDPOINT` (default `https://huggingface.co`).
+- Defaults (CPU compose): `EMBEDDING_MODEL=BAAI/bge-small-en-v1.5`, `CHAT_MODEL=Qwen/Qwen2.5-1.5B-Instruct-GGUF`,
+  `LLM_CTX=4096`, `LLM_N_BATCH=1024`, `LLM_MAX_TOKENS=768`, `LLM_GPU_LAYERS=0` (CPU),
+  `HF_ENDPOINT` (default `https://huggingface.co`). The GPU overlay (`docker-compose.gpu.yml`)
+  serves `Qwen/Qwen2.5-3B-Instruct-GGUF` with `LLM_GPU_LAYERS=-1`.
 - Models persist in the named volume `documind_mlmodels`. The first boot can take a long time (model download).
 - The service **ignores the `model` name the app sends** and always answers with its own loaded model —
-  so the `.env.example` value `ML_CHAT_MODEL=Qwen/Qwen2.5-1.5B-Instruct-GGUF` and the container's 3B model
-  do not conflict (they only change what the app *asks* for, not what is served).
+  so the `.env` value `ML_CHAT_MODEL` and the container's model only change what the app *asks* for,
+  not what is served.
+- An image built **with** a CUDA wheel in `ml/wheels/` can only be *run* with the GPU overlay: it links
+  against `libcuda.so.1`, which the NVIDIA container toolkit injects at run time. Plain
+  `docker compose up ml` on such an image fails at model load.
 
 ### 2.3 Two install paths
 

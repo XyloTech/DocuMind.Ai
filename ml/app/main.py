@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import time
 import uuid
 from typing import Any, Iterator, Literal
@@ -48,6 +49,42 @@ class ChatRequest(BaseModel):
 @app.on_event("startup")
 def warm_up() -> None:
     embeddings_service.load()
+
+    # Loading the ~2 GB GGUF takes seconds. Doing it on a background thread
+    # gets the weights into memory before the first user message while /health
+    # (the readiness probe) keeps answering; ChatService.load() is lock-guarded,
+    # so a concurrent chat request simply waits for this same load to finish.
+    threading.Thread(target=_load_and_prime, daemon=True).start()
+
+
+def _load_and_prime() -> None:
+    """Load the chat model, then burn the one-off first-call costs.
+
+    On a GPU the first completion after load builds the CUDA context and runs
+    cuBLAS autotuning, which adds seconds to an otherwise sub-second first
+    token. Autotuning is per matrix shape, so the prime prompt is deliberately
+    the size of a real RAG prompt (~1000+ tokens) rather than a token: a tiny
+    "ping" warms the context but leaves the prefill GEMMs untested, and the
+    first user would still pay for them.
+    """
+    chat_service.load()
+
+    if chat_service.error is not None:
+        return
+
+    filler = "The refund window is thirty days from delivery; later requests " \
+        "need a support ticket. Shipping charges are refunded only when the " \
+        "item arrived damaged. " * 40
+
+    try:
+        chat_service.create_completion(
+            [{"role": "user", "content": filler}],
+            max_tokens=1,
+            temperature=0.0,
+            stream=False,
+        )
+    except Exception:  # noqa: BLE001 - priming is best-effort by design
+        pass
 
 
 @app.get("/health")
@@ -155,6 +192,7 @@ def create_chat_completion(payload: ChatRequest) -> Any:
 def stream_chunks(result: Any, model: str) -> Iterator[str]:
     identifier = "chatcmpl-" + uuid.uuid4().hex[:24]
     created = int(time.time())
+    started = time.monotonic()
     prompt_tokens = 0
     completion_tokens = 0
     finish_reason = "stop"
@@ -165,6 +203,12 @@ def stream_chunks(result: Any, model: str) -> Iterator[str]:
         delta = choice.get("text") or choice.get("delta", {}).get("content")
 
         if delta:
+            if not text:
+                print(
+                    f"ttft_ms={int((time.monotonic() - started) * 1000)}",
+                    flush=True,
+                )
+
             text += delta
             payload = {
                 "id": identifier,

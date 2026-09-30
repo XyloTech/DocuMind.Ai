@@ -20,7 +20,7 @@ return [
 
     'enabled' => (bool) env('ML_ENABLED', true),
 
-    'chat_model' => env('ML_CHAT_MODEL', 'Qwen/Qwen2.5-3B-Instruct-GGUF'),
+    'chat_model' => env('ML_CHAT_MODEL', 'Qwen/Qwen2.5-1.5B-Instruct-GGUF'),
 
     /*
     |--------------------------------------------------------------------------

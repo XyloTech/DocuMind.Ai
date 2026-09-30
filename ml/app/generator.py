@@ -9,6 +9,7 @@ from app.settings import (
     CHAT_MODEL_FILE,
     LLM_CTX,
     LLM_GPU_LAYERS,
+    LLM_N_BATCH,
     LLM_N_THREADS,
     MODEL_DIR,
 )
@@ -85,7 +86,7 @@ class ChatService:
                     n_ctx=LLM_CTX,
                     n_gpu_layers=LLM_GPU_LAYERS,
                     n_threads=LLM_N_THREADS or None,
-                    n_batch=512,
+                    n_batch=LLM_N_BATCH,
                     verbose=False,
                 )
             except Exception as exc:
