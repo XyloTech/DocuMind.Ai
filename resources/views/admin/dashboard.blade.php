@@ -233,17 +233,17 @@
         <section class="overflow-x-auto rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#0d0f15]">
             <div class="border-b border-slate-200 px-4 py-3 dark:border-white/10">
                 <h2 class="text-sm font-bold text-slate-900 dark:text-white">Human support requests</h2>
-                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">One-to-one conversations opened from the dashboard chat. Open a conversation to read the transcript and reply.</p>
+                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">One-to-one conversations opened from your website assistants. Open one to read the transcript and reply.</p>
             </div>
             <table class="w-full min-w-[760px] text-left text-xs">
                 <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 dark:bg-white/[0.03]">
-                    <tr><th class="px-4 py-3">Conversation</th><th class="px-4 py-3">Account</th><th class="px-4 py-3">Agent</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Messages</th><th class="px-4 py-3">Last activity</th><th class="px-4 py-3">Action</th></tr>
+                    <tr><th class="px-4 py-3">Conversation</th><th class="px-4 py-3">Origin</th><th class="px-4 py-3">Agent</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Messages</th><th class="px-4 py-3">Last activity</th><th class="px-4 py-3">Action</th></tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-white/5">
                     @forelse ($supportConversations as $support)
                         <tr>
                             <td class="px-4 py-3 font-medium">Support conversation #{{ $support->id }}</td>
-                            <td class="px-4 py-3">Account #{{ $support->user_id }}</td>
+                            <td class="px-4 py-3">{{ $support->originLabel() }}</td>
                             <td class="px-4 py-3 text-slate-500">{{ $support->agent?->name ?? 'Unassigned' }}</td>
                             <td class="px-4 py-3">{{ $support->status->label() }}</td>
                             <td class="px-4 py-3 tabular-nums">{{ $support->messages_count }}</td>

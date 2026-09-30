@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'user_id',
     'agent_id',
     'chat_id',
+    'widget_conversation_id',
     'status',
     'message_count',
     'last_message_at',
@@ -56,6 +57,15 @@ class SupportConversation extends Model
     }
 
     /**
+     * The widget conversation this ticket was opened from. Anonymous widget
+     * visitors have no user account, so this is the only origin they have.
+     */
+    public function widgetConversation(): BelongsTo
+    {
+        return $this->belongsTo(WidgetConversation::class);
+    }
+
+    /**
      * @return HasMany<SupportMessage, $this>
      */
     public function messages(): HasMany
@@ -71,5 +81,20 @@ class SupportConversation extends Model
     public function isLive(): bool
     {
         return $this->status->isLive();
+    }
+
+    /**
+     * Who opened this ticket, for staff-facing surfaces. Widget visitors
+     * have no account, so they are named after the assistant they wrote in.
+     */
+    public function originLabel(): string
+    {
+        if ($this->widgetConversation !== null) {
+            $site = $this->widgetConversation->site;
+
+            return 'Widget visitor'.($site !== null ? ' · '.$site->name : '');
+        }
+
+        return $this->user?->name ?? 'Deleted account';
     }
 }

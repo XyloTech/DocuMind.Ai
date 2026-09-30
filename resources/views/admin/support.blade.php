@@ -14,7 +14,13 @@
                     Conversation #{{ $conversation->getKey() }}
                 </h1>
                 <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-                    {{ auth()->user()->isAdmin() ? ($conversation->user?->name ?? 'Deleted account') : 'Account #'.$conversation->user_id }}
+                    @if ($conversation->widgetConversation !== null)
+                        {{ $conversation->originLabel() }}
+                    @elseif (auth()->user()->isAdmin())
+                        {{ $conversation->originLabel() }}
+                    @else
+                        Account #{{ $conversation->user_id }}
+                    @endif
                     · opened {{ $conversation->created_at?->diffForHumans() }}
                     @if ($conversation->chat_id !== null)
                         · from chat #{{ $conversation->chat_id }}
@@ -55,7 +61,7 @@
                         >
                             <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide opacity-70">
                                 {{ $message->role === \App\Enums\SupportMessageRole::User
-                                    ? (auth()->user()->isAdmin() ? ($message->sender?->name ?? 'Customer') : 'Customer')
+                                    ? (auth()->user()->isAdmin() ? ($message->sender?->name ?? 'Visitor') : 'Visitor')
                                     : ($message->sender?->name ?? 'Support') }}
                                 <span aria-hidden="true">·</span>
                                 {{ $message->created_at?->diffForHumans() }}
@@ -72,20 +78,20 @@
         @if ($conversation->status->isLive())
             <form method="POST" action="{{ route('admin.support.reply', $conversation) }}" class="mt-4 flex items-end gap-2">
                 @csrf
-                <label class="sr-only" for="admin-reply">Reply to the customer</label>
+                <label class="sr-only" for="admin-reply">Reply to the visitor</label>
                 <textarea
                     id="admin-reply"
                     name="message"
                     rows="2"
                     required
                     maxlength="4000"
-                    placeholder="Reply to the customer…"
+                    placeholder="Reply to the visitor…"
                     class="min-w-0 flex-1 resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 dark:border-white/15 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
                 ></textarea>
                 <button type="submit" class="btn btn-primary">Reply</button>
             </form>
 
-            <form method="POST" action="{{ route('admin.support.resolve', $conversation) }}" class="mt-3" data-admin-confirm="Mark this conversation as resolved? The customer will be notified.">
+            <form method="POST" action="{{ route('admin.support.resolve', $conversation) }}" class="mt-3" data-admin-confirm="Mark this conversation as resolved? The visitor's chat will show it as closed.">
                 @csrf
                 <button type="submit" class="btn btn-secondary btn-sm">Resolve conversation</button>
             </form>

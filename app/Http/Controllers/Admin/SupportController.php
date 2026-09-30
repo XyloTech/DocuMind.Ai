@@ -27,6 +27,8 @@ class SupportController extends Controller
     {
         Gate::authorize('view', $supportConversation);
 
+        $supportConversation->loadMissing('widgetConversation.site:id,name');
+
         return view('admin.support', [
             'conversation' => $supportConversation,
             'messages' => $supportConversation->messages()->with('sender:id,name')->orderBy('id')->get(),
@@ -65,7 +67,7 @@ class SupportController extends Controller
             'Replied in support conversation #'.$supportConversation->getKey(),
         );
 
-        return back()->with('status', 'Reply sent to the customer.');
+        return back()->with('status', 'Reply sent to the visitor.');
     }
 
     public function resolve(Request $request, SupportConversation $supportConversation): RedirectResponse

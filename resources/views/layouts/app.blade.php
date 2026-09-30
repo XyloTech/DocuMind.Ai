@@ -89,14 +89,7 @@
                                 href="{{ route('chats.index') }}"
                                 class="order-2 rounded-lg px-3 py-1.5 text-sm font-medium transition {{ request()->routeIs('chats.*') ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-white' }}"
                             >
-                                Support
-                            </a>
-
-                            <a
-                                href="{{ route('support.index') }}"
-                                class="order-7 rounded-lg px-3 py-1.5 text-sm font-medium transition {{ request()->routeIs('support.*') ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-500 dark:hover:bg-white/5 dark:hover:text-white' }}"
-                            >
-                                Talk to us
+                                Chat
                             </a>
 
                             <a
@@ -275,16 +268,6 @@
                                 <line x1="2" x2="22" y1="10" y2="10"/>
                             </svg>
                             Billing
-                        </a>
-                        <a
-                            href="{{ route('support.index') }}"
-                            class="order-6 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs('support.*') ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-500 dark:hover:bg-white/5' }}"
-                        >
-                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
-                                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
-                            </svg>
-                            Talk to us
                         </a>
                     </nav>
 

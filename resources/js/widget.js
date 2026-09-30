@@ -21,6 +21,11 @@ const PHASE_LABELS = {
 };
 /* The server pushes `status` immediately, so silence means a dead request. */
 const FIRST_BYTE_TIMEOUT_MS = 15000;
+/* A visitor in support mode polls for agent replies at this cadence. */
+const SUPPORT_POLL_MS = 3000;
+const ASK_PLACEHOLDER = 'Ask about a product, feature, or issue…';
+const SUPPORT_PLACEHOLDER = 'Message for the support team';
+const SUPPORT_HINT = 'Describe what you need a hand with…';
 
 let config = null;
 let conversationId = null;
@@ -49,6 +54,15 @@ let launcherTimers = [];
  * visitor then saw instead of the form.
  */
 let emailCaptured = false;
+/**
+ * Live human-support state: null until the visitor asks for a person, then
+ * the payload of the server's `handoff`/`support` event. Drives the support
+ * chrome (placeholder, status line, hint) and the reply-polling loop.
+ */
+let support = null;
+/** Highest support-transcript id this visitor has already rendered. */
+let supportLastId = 0;
+let supportPollTimer = null;
 
 // Guard the DOM reads so the bundle can also be imported by a server-side
 // renderer (Next/Nuxt prerender) without throwing before any code runs.
@@ -327,6 +341,13 @@ function styleSheet(accent, theme = 'dark') {
 .composer textarea { background: #ffffff; color: #172033; border-color: #d3dce8; }
 .composer textarea::placeholder { color: #718096; }
 .quota-banner { color: #784b08; background: #fff8e8; border-color: #f1d69d; }
+.support-notice { background: color-mix(in srgb, ${accent} 8%, #ffffff); border-color: color-mix(in srgb, ${accent} 35%, #e2e8f0); }
+.support-notice svg { color: ${accent}; }
+.support-notice strong { color: #172033; }
+.support-notice span { color: #475569; }
+.support-system { background: #f1f5f9; border-color: #e2e8f0; color: #64748b; }
+.msg-meta { color: ${accent}; }
+.composer-hint { color: #64748b; }
 `;
     const themeRules = theme === 'light'
         ? lightThemeRules
@@ -740,6 +761,30 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
 
 .quota-banner { padding: 8px 14px; font-size: 11px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border-top: 1px solid rgba(245, 158, 11, 0.2); }
 
+/* Human support mode: the connection card, the staff/system lines, the label
+   above an agent's reply, and the hint under the composer. */
+.support-row { align-self: center; width: 100%; max-width: 100%; }
+.support-notice {
+    display: flex; gap: 10px; align-items: flex-start; width: 100%;
+    padding: 12px 14px; border-radius: 14px;
+    background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(129, 140, 248, 0.35);
+}
+.support-notice svg { flex: 0 0 auto; margin-top: 1px; color: #a5b4fc; }
+.support-notice-copy { min-width: 0; }
+.support-notice strong { display: block; font-size: 13px; line-height: 1.4; color: #eef2ff; }
+.support-notice span { display: block; margin-top: 3px; font-size: 12px; line-height: 1.5; color: #a5b4fc; }
+.support-system {
+    margin: 0 auto; max-width: 100%; text-align: center; padding: 5px 12px;
+    font-size: 11px; line-height: 1.5; color: #94a3b8;
+    background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
+}
+.msg-meta {
+    margin-bottom: 4px; font-size: 10px; font-weight: 650;
+    letter-spacing: 0.03em; text-transform: uppercase; color: #818cf8;
+}
+.composer-hint { margin-top: 8px; text-align: center; font-size: 11px; color: #94a3b8; }
+
 ${themeRules}
 
 ${motionCss}
@@ -1112,7 +1157,7 @@ function build() {
         'data-input': '',
         rows: '1',
         maxlength: '1000',
-        placeholder: 'Ask about a product, feature, or issue…',
+        placeholder: ASK_PLACEHOLDER,
         'aria-label': 'Message',
     });
 
@@ -1131,7 +1176,8 @@ function build() {
     }, [icon(ICONS.send)]);
 
     const form = el('form', { class: 'composer', 'data-composer': '' }, [input, stop, send]);
-    const dock = el('div', { class: 'composer-dock', style: 'none' }, [form]);
+    const composerHint = el('div', { class: 'composer-hint', 'data-composer-hint': '', style: 'none', text: SUPPORT_HINT });
+    const dock = el('div', { class: 'composer-dock', style: 'none' }, [form, composerHint]);
 
     const panel = el('div', {
         id: `${widgetId}-dialog`,
@@ -1156,6 +1202,7 @@ function build() {
         send: panel.querySelector('[data-send]'),
         stop: panel.querySelector('[data-stop]'),
         form: panel.querySelector('[data-composer]'),
+        composerHint: panel.querySelector('[data-composer-hint]'),
         suggestions: panel.querySelector('[data-suggestions]'),
         quota: panel.querySelector('[data-quota]'),
         minimize: panel.querySelector('[data-minimize]'),
@@ -1397,6 +1444,7 @@ function showEmailGate() {
     emailCaptured = false;
     conversationId = null;
     storeConversation(null);
+    exitSupportMode();
     els.emailGate.style.display = 'flex';
     els.restart.style.display = 'none';
     els.log.style.display = 'none';
@@ -1413,7 +1461,7 @@ function showConversation() {
     els.emailGate.style.display = 'none';
     els.restart.style.display = '';
     els.log.style.display = 'flex';
-    els.suggestions.style.display = 'flex';
+    els.suggestions.style.display = support ? 'none' : 'flex';
     els.quota.style.display = 'none';
     els.form.parentElement.style.display = 'block';
 }
@@ -1689,9 +1737,10 @@ function showConnectionError(message, detail) {
 function applyQuota(quota) {
     if (!quota || !quota.exhausted) return;
 
-    showQuota('This assistant has reached its monthly message limit.');
-    if (els.input) els.input.disabled = true;
-    if (els.send) els.send.disabled = true;
+    // The banner explains the stop, but the composer stays open: asking for
+    // a human is the documented way through an exhausted quota, and the
+    // server decides that before it ever counts a message.
+    showQuota('This assistant has reached its monthly message limit. Ask to talk to a human to reach our support team.');
 }
 
 function applyConfig(next) {
@@ -1804,6 +1853,7 @@ function scheduleConfigRefresh() {
 async function resetConversation() {
     if (streaming) return;
 
+    exitSupportMode();
     storeConversation(null);
     conversationId = null;
     clearSourceDismissers();
@@ -1915,19 +1965,41 @@ async function restoreConversation(convId) {
         showConversation();
         setConnectionStatus('Online');
 
-        if (Array.isArray(data.messages) && data.messages.length > 0) {
-            data.messages.forEach(msg => {
-                const bubble = addMessage(msg.role, msg.content, msg.id, msg.feedback);
-                if (msg.role !== 'user' && Array.isArray(msg.sources)) {
-                    renderSources(msg.sources, bubble.wrap);
+        renderSuggestions(config.suggestions);
+        applyQuota(data.quota);
+
+        // Adopted after the suggestion/quota chrome so support mode can
+        // override it — the composer now speaks to a human.
+        const supportMessages = data.support ? restoreSupport(data) : [];
+
+        // The two transcripts interleave in time: the visitor's lines (and
+        // the assistant's) live in the widget transcript, agent replies only
+        // in the support one. Merged by timestamp, with the visitor's mirrored
+        // support rows dropped — those already rendered from the widget side.
+        const merged = [
+            ...(Array.isArray(data.messages) ? data.messages : [])
+                .map((message) => ({ ...message, from: 'widget' })),
+            ...supportMessages
+                .filter((message) => message.role !== 'user')
+                .map((message) => ({ ...message, from: 'support' })),
+        ].sort((a, b) => String(a.created_at ?? '').localeCompare(String(b.created_at ?? '')));
+
+        if (merged.length > 0) {
+            merged.forEach((message) => {
+                if (message.from === 'support') {
+                    renderSupportMessage(message);
+
+                    return;
+                }
+
+                const bubble = addMessage(message.role, message.content, message.id, message.feedback);
+                if (message.role !== 'user' && Array.isArray(message.sources)) {
+                    renderSources(message.sources, bubble.wrap);
                 }
             });
         } else {
             addGreetingMessage(config.greeting || 'Hi! I can help with the product. What do you need help with?');
         }
-
-        renderSuggestions(config.suggestions);
-        applyQuota(data.quota);
     } catch {
         if (emailGateNeeded()) {
             showEmailGate();
@@ -2049,6 +2121,387 @@ function feedbackActions(messageId, state = null) {
     return actions;
 }
 
+/* ---------- Human support mode ---------- */
+
+/**
+ * Switch the widget from the assistant to the live support conversation:
+ * the connection notice (unless one is already on screen), the support
+ * chrome (placeholder, status line, hint) and the polling loop that brings
+ * agent replies in.
+ */
+function enterSupportMode(payload, { announce = true } = {}) {
+    if (!payload) return;
+
+    support = payload;
+
+    // Everything the ticket already holds was shown the moment it opened —
+    // the acknowledgement bubble, the welcome line's intent. Start the poll
+    // cursor there so the first tick only brings replies the visitor has
+    // not seen yet.
+    const lastSeen = Number(payload.last_message_id);
+    if (Number.isFinite(lastSeen) && lastSeen > supportLastId) {
+        supportLastId = lastSeen;
+    }
+
+    if (announce) addSupportNotice(payload);
+    applySupportChrome();
+
+    if (support.live) startSupportPolling();
+}
+
+/** Hand the composer back to the assistant and stop polling. */
+function exitSupportMode() {
+    support = null;
+    stopSupportPolling();
+
+    if (els.input) {
+        els.input.placeholder = ASK_PLACEHOLDER;
+        els.input.setAttribute('aria-label', 'Message');
+    }
+    if (els.composerHint) els.composerHint.style.display = 'none';
+
+    if (els.suggestions) {
+        const list = Array.isArray(config?.suggestions) ? config.suggestions : [];
+        renderSuggestions(list);
+        els.suggestions.style.display = list.length > 0 ? 'flex' : 'none';
+    }
+
+    setConnectionStatus('Online');
+}
+
+/** The centred card that tells the visitor a person has picked this up. */
+function addSupportNotice(payload) {
+    const waiting = !payload?.agent;
+
+    const card = el('div', { class: 'support-notice' }, [
+        icon(ICONS.support, { size: 18, width: 2 }),
+        el('div', { class: 'support-notice-copy' }, [
+            el('strong', {
+                text: waiting
+                    ? 'You’re with the DocuMind support team.'
+                    : `You’re connected with ${payload.agent} from the DocuMind support team.`,
+            }),
+            el('span', {
+                text: waiting
+                    ? 'Your request has been passed on — a specialist will reply right here.'
+                    : 'Replies arrive here — no refresh needed.',
+            }),
+        ]),
+    ]);
+
+    els.log.append(el('div', { class: 'msg-wrap support-row' }, [card]));
+    scroll();
+}
+
+/**
+ * Support chrome: the composer speaks to a human now. Human support stays
+ * reachable after the site's visitor quota runs out — these turns never
+ * touch the assistant's credits.
+ */
+function applySupportChrome() {
+    if (!support || !els.input) return;
+
+    els.input.placeholder = SUPPORT_PLACEHOLDER;
+    els.input.setAttribute('aria-label', 'Message for the support team');
+    els.input.disabled = false;
+    if (els.send) els.send.disabled = false;
+    if (els.composerHint) els.composerHint.style.display = 'block';
+    if (els.suggestions) {
+        els.suggestions.innerHTML = '';
+        els.suggestions.style.display = 'none';
+    }
+
+    if (support.live) {
+        setConnectionStatus(
+            support.agent
+                ? `Support · ${support.agent}`
+                : `Support · ${support.status_label || 'Waiting for an agent'}`,
+            support.agent ? 'online' : 'waiting',
+        );
+    } else {
+        setConnectionStatus(`Support · ${support.status_label || 'Resolved'}`, 'offline');
+    }
+}
+
+function startSupportPolling() {
+    stopSupportPolling();
+
+    const tick = async () => {
+        supportPollTimer = null;
+
+        if (!support?.live || !conversationId) return;
+
+        // Hidden tabs and in-flight sends do not need a fetch; the next tick
+        // catches up. The loop only stops when the ticket is no longer live.
+        if (!document.hidden && !streaming) {
+            await pollSupport();
+        }
+
+        if (support?.live) {
+            supportPollTimer = window.setTimeout(tick, SUPPORT_POLL_MS);
+        }
+    };
+
+    supportPollTimer = window.setTimeout(tick, SUPPORT_POLL_MS);
+}
+
+function stopSupportPolling() {
+    if (supportPollTimer !== null) {
+        window.clearTimeout(supportPollTimer);
+        supportPollTimer = null;
+    }
+}
+
+/** Fetch agent replies newer than the visitor's cursor and adopt them. */
+async function pollSupport() {
+    if (!conversationId) return;
+
+    try {
+        const response = await fetch(
+            `${apiPath()}/${siteKey}/conversations/${conversationId}/support?since=${supportLastId}&visitor_id=${encodeURIComponent(visitorId())}`,
+            { headers: { Accept: 'application/json' }, cache: 'no-store' },
+        );
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const messages = Array.isArray(data.messages) ? data.messages : [];
+
+        messages.forEach(renderSupportMessage);
+        supportLastId = messages.reduce((max, message) => Math.max(max, Number(message.id) || 0), supportLastId);
+
+        if (data.support) {
+            support = data.support;
+
+            if (support.live) {
+                applySupportChrome();
+            } else {
+                // The agent closed the ticket: the resolved system line above
+                // already said so, so hand the composer back to the assistant.
+                exitSupportMode();
+            }
+        }
+    } catch {
+        /* polling is best-effort; the next tick retries */
+    }
+}
+
+/**
+ * Render one row of the support transcript. The visitor's own lines are
+ * skipped — every support turn is mirrored into the widget transcript they
+ * already see.
+ */
+function renderSupportMessage(message) {
+    if (!message || !message.id) return;
+
+    if (message.role === 'user') return;
+
+    if (message.role === 'system') {
+        els.log.append(el('div', { class: 'msg-wrap support-row' }, [
+            el('div', { class: 'support-system', text: message.content }),
+        ]));
+        scroll();
+
+        return;
+    }
+
+    const bubble = addMessage('bot', message.content);
+
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    meta.textContent = [message.label || 'Support', relativeTime(message.created_at)]
+        .filter(Boolean)
+        .join(' · ');
+    bubble.stack.prepend(meta);
+    scroll();
+}
+
+/** A short "3m ago" for the label above an agent's reply. */
+function relativeTime(timestamp) {
+    if (!timestamp) return '';
+
+    const then = new Date(timestamp).getTime();
+    if (Number.isNaN(then)) return '';
+
+    const seconds = Math.max(0, Math.round((Date.now() - then) / 1000));
+
+    if (seconds < 45) return 'just now';
+    if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))}m ago`;
+    if (seconds < 86400) return `${Math.round(seconds / 3600)}h ago`;
+
+    return `${Math.round(seconds / 86400)}d ago`;
+}
+
+/**
+ * Re-adopt a support conversation when the visitor reopens the widget: the
+ * two transcripts are merged by time (agent replies live only here, the
+ * visitor's own lines only in the widget transcript they already rendered),
+ * and a still-live ticket gets the full support chrome plus polling.
+ */
+function restoreSupport(data) {
+    const transcript = Array.isArray(data.support_messages) ? data.support_messages : [];
+
+    supportLastId = transcript.reduce((max, message) => Math.max(max, Number(message.id) || 0), 0);
+
+    if (data.support.live) {
+        // No connection card on restore: the welcome system line in the
+        // transcript already says it, and the header picks up the status.
+        enterSupportMode(data.support, { announce: false });
+    } else {
+        stopSupportPolling();
+        if (els.input) {
+            els.input.placeholder = ASK_PLACEHOLDER;
+        }
+    }
+
+    return transcript;
+}
+
+/**
+ * Send a message to the live support conversation. Server-side these turns
+ * route to the agent's inbox; none of them spend quota or credits.
+ */
+async function sendSupportMessage(text) {
+    streaming = true;
+    controller = new AbortController();
+    els.send.style.display = 'none';
+    els.stop.style.display = 'grid';
+    els.input.value = '';
+    autosize();
+    els.suggestions.innerHTML = '';
+
+    const userWrap = addMessage('user', text);
+    reportEvent('message_sent');
+
+    const typing = addTyping();
+    const typingLabel = typing.querySelector('.typing-label');
+    if (typingLabel) typingLabel.textContent = 'Sending…';
+
+    let completed = false;
+
+    let watchdog = window.setTimeout(() => controller?.abort(), FIRST_BYTE_TIMEOUT_MS);
+    const handleOffline = () => controller?.abort();
+    window.addEventListener('offline', handleOffline);
+
+    try {
+        const response = await fetch(
+            `${apiPath()}/${siteKey}/conversations/${conversationId}/messages`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+                body: JSON.stringify({ message: text, visitor_id: visitorId() }),
+                signal: controller.signal,
+            },
+        );
+
+        if (!response.ok || !response.body) {
+            const body = await response.json().catch(() => ({}));
+            throw new Error(body.message || 'Your message could not be sent.');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        const handle = (frame) => {
+            let event = 'message';
+            let data = '';
+
+            frame.split(/\r?\n/).forEach((line) => {
+                if (line.startsWith('event:')) event = line.slice(6).trim();
+                else if (line.startsWith('data:')) {
+                    const chunk = line.slice(5).replace(/^ /, '');
+                    data += data === '' ? chunk : `\n${chunk}`;
+                }
+            });
+
+            if (!data) return;
+
+            let payload;
+
+            try {
+                payload = JSON.parse(data);
+            } catch {
+                return;
+            }
+
+            if (event === 'support' && payload) {
+                // Fresh status/agent, but never the cursor: replies the agent
+                // sent before this turn are still unpolled and must not be
+                // skipped past.
+                support = { ...support, ...payload };
+                applySupportChrome();
+            }
+
+            if (event === 'done') {
+                completed = true;
+            }
+
+            if (event === 'error') {
+                throw new Error(payload.message || 'Something went wrong.');
+            }
+        };
+
+        for (;;) {
+            const { value, done } = await reader.read();
+
+            if (done) break;
+
+            if (value && value.length > 0) {
+                clearTimeout(watchdog);
+                watchdog = null;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+
+            let match;
+            while ((match = buffer.match(/\r?\n\r?\n/)) !== null) {
+                handle(buffer.slice(0, match.index));
+                buffer = buffer.slice(match.index + match[0].length);
+            }
+        }
+
+        dismissTyping(typing);
+
+        if (!completed) {
+            const note = el('div', { class: 'msg-wrap support-row' }, [
+                el('div', { class: 'error-hint', text: 'This message may not have reached the team — reopen the chat to check.' }),
+            ]);
+            els.log.append(note);
+            scroll();
+        }
+    } catch (error) {
+        dismissTyping(typing);
+
+        const bubble = addMessage('bot', '');
+        bubble.node.classList.add('error');
+        bubble.node.textContent =
+            error && error.name === 'AbortError'
+                ? 'Your message was not sent.'
+                : (error && error.message) || 'Your message could not be sent.';
+
+        addRetryAction(userWrap, bubble.wrap, text);
+    } finally {
+        clearTimeout(watchdog);
+        window.removeEventListener('offline', handleOffline);
+        streaming = false;
+        controller = null;
+        els.send.style.display = 'grid';
+        els.stop.style.display = 'none';
+
+        if (root && root.classList.contains('open') && els.input && !els.input.disabled) {
+            els.input.focus();
+        }
+
+        scroll();
+
+        // Pick up anything the agent sent while this request was in flight.
+        if (support?.live) {
+            await pollSupport().catch(() => {});
+        }
+    }
+}
+
 async function sendMessage() {
     if (streaming || !conversationId) {
         return;
@@ -2056,6 +2509,13 @@ async function sendMessage() {
 
     const text = els.input.value.trim();
     if (!text) return;
+
+    // A live human conversation outranks the assistant: the same composer,
+    // a different destination (and no quota behind it).
+    if (support?.live) {
+        await sendSupportMessage(text);
+        return;
+    }
 
     streaming = true;
     controller = new AbortController();
@@ -2131,9 +2591,8 @@ async function sendMessage() {
             }
 
             if (body.exhausted) {
-                showQuota(body.message || 'This assistant has reached its monthly message limit.');
-                if (els.input) els.input.disabled = true;
-                if (els.send) els.send.disabled = true;
+                dismissTyping(typing);
+                showQuota(body.message || 'This assistant has reached its monthly message limit. Ask to talk to a human to reach our support team.');
                 return;
             }
 
@@ -2190,10 +2649,20 @@ async function sendMessage() {
                 return;
             }
 
+            // The assistant passed the conversation to a person: the delta
+            // above already rendered the acknowledgement bubble, this flips
+            // the widget into support mode for every turn after it.
+            if (event === 'handoff') {
+                enterSupportMode(payload);
+                return;
+            }
+
             if (event === 'done') {
                 completed = true;
 
-                if (assistantBubble && payload.id) {
+                // In support mode the visitor chats with a person, not the
+                // model — no thumbs under the handoff acknowledgement.
+                if (assistantBubble && payload.id && !support) {
                     assistantBubble.wrap.append(feedbackActions(payload.id));
                 }
 
@@ -2372,6 +2841,9 @@ function mount(options = {}) {
 
 function unmount() {
     clearSourceDismissers();
+    stopSupportPolling();
+    support = null;
+    supportLastId = 0;
     avatarGazeCleanups.forEach((cleanup) => cleanup());
     avatarGazeCleanups.clear();
     stopLauncherAttention();

@@ -93,7 +93,7 @@ class AdminSupportInboxTest extends TestCase
         $this->actingAs($customer)->get(route('admin.support.show', $conversation))->assertForbidden();
     }
 
-    public function test_resolving_a_conversation_closes_it_and_notifies_the_customer(): void
+    public function test_resolving_a_conversation_closes_it_and_records_the_reason(): void
     {
         $admin = User::factory()->admin()->create();
         $customer = User::factory()->create();
@@ -110,9 +110,13 @@ class AdminSupportInboxTest extends TestCase
         $this->assertSame('resolved', $conversation->fresh()->status->value);
         $this->assertNotNull($conversation->fresh()->resolved_at);
 
-        $this->assertDatabaseHas('user_notifications', [
-            'user_id' => $customer->getKey(),
-            'type' => 'conversation.replied',
+        // The visitor learns about it through the widget's support polling,
+        // so resolution leaves a system line in the transcript instead of a
+        // notification.
+        $this->assertDatabaseHas('support_messages', [
+            'support_conversation_id' => $conversation->getKey(),
+            'role' => 'system',
+            'content' => 'Conversation resolved by '.$admin->name.'.',
         ]);
 
         $this->assertDatabaseHas('admin_audit_logs', [

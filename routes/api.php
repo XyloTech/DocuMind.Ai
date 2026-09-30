@@ -31,6 +31,9 @@ Route::prefix('widget/{siteKey}')->name('widget.')->group(function (): void {
         Route::get('/', [WidgetChatController::class, 'show'])
             ->middleware('throttle:widget')
             ->name('show');
+        Route::get('/support', [WidgetChatController::class, 'support'])
+            ->middleware('throttle:widget-support')
+            ->name('support');
         Route::post('/messages', [WidgetChatController::class, 'messages'])
             ->middleware('throttle:widget')
             ->name('messages');

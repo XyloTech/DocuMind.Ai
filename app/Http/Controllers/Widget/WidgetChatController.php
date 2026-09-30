@@ -7,8 +7,11 @@ use App\Enums\ChatRole;
 use App\Enums\DocumentStatus;
 use App\Enums\MessageStatus;
 use App\Enums\NotificationType;
+use App\Enums\SupportMessageRole;
 use App\Http\Controllers\Controller;
 use App\Models\Site;
+use App\Models\SupportConversation;
+use App\Models\SupportMessage;
 use App\Models\WidgetConversation;
 use App\Models\WidgetConversationAuditLog;
 use App\Models\WidgetEvent;
@@ -23,6 +26,8 @@ use App\Services\RAG\PromptBuilder;
 use App\Services\RAG\RankFusion;
 use App\Services\RAG\SimilaritySearch;
 use App\Services\RAG\VectorStore;
+use App\Services\Support\HandoffDetector;
+use App\Services\Support\SupportInbox;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +48,12 @@ use Throwable;
  */
 class WidgetChatController extends Controller
 {
+    /**
+     * What the assistant says when a visitor asks for a person. Streamed back
+     * verbatim so the bubble matches the support transcript that opens with it.
+     */
+    private const string HANDOFF_TEXT = "You're connected with the DocuMind support team. Describe what you need a hand with and a specialist will reply right here.";
+
     public function __construct(
         private readonly EmbeddingClient $embeddings,
         private readonly VectorStore $store,
@@ -53,6 +64,8 @@ class WidgetChatController extends Controller
         private readonly PromptBuilder $prompts,
         private readonly ChatClient $chatClient,
         private readonly IntentClassifier $intents,
+        private readonly HandoffDetector $handoffs,
+        private readonly SupportInbox $support,
     ) {}
 
     /**
@@ -198,18 +211,23 @@ class WidgetChatController extends Controller
         $site->rotateQuotaIfNeeded();
         $remaining = $site->remainingQuota();
 
+        $support = $this->latestSupport($conversation);
+
         return response()->json([
             'config' => $site->widgetConfig(),
             'email_captured' => $conversation->visitor_email_consent_at !== null,
             'session_id' => $conversation->visitor_id,
+            'support' => $support === null ? null : $this->supportPayload($support),
+            'support_messages' => $this->supportMessages($support, 0),
             'messages' => $conversation->messages()
                 ->orderBy('id')
-                ->get(['id', 'role', 'content', 'sources', 'was_refused', 'was_helpful'])
+                ->get(['id', 'role', 'content', 'created_at', 'sources', 'was_refused', 'was_helpful'])
                 ->map(function (WidgetMessage $message): array {
                     return [
                         'id' => $message->id,
                         'role' => $message->role->value,
                         'content' => $message->content,
+                        'created_at' => $message->created_at->toIso8601String(),
                         'sources' => $message->sourceBadges() === [] ? [] : [['knowledge_used' => true]],
                         'refused' => $message->was_refused,
                         'feedback' => $message->was_helpful,
@@ -220,6 +238,28 @@ class WidgetChatController extends Controller
                 'exhausted' => $remaining === 0,
             ],
         ]);
+    }
+
+    /**
+     * Lightweight poll for agent replies while the visitor is in support mode.
+     * Never spends quota — human support keeps working after the site's
+     * visitor-message budget is gone.
+     */
+    public function support(Request $request, string $siteKey, WidgetConversation $conversation): JsonResponse
+    {
+        $site = $this->site($request, $siteKey);
+        $this->authorizeConversation($request, $site, $conversation);
+
+        $validated = $request->validate([
+            'since' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $support = $this->latestSupport($conversation);
+
+        return response()->json([
+            'support' => $support === null ? null : $this->supportPayload($support),
+            'messages' => $this->supportMessages($support, (int) ($validated['since'] ?? 0)),
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     /**
@@ -239,15 +279,31 @@ class WidgetChatController extends Controller
 
         $question = trim($validated['message']);
 
+        if ($question === '') {
+            return response()->json(['message' => 'Type a message first.'], 422);
+        }
+
+        // A live human conversation outranks the assistant: follow-ups land
+        // in the support transcript and never spend quota, so help keeps
+        // working after the site's visitor-message budget is gone.
+        $ticket = $this->latestSupport($conversation);
+
+        if ($ticket !== null && $ticket->isLive()) {
+            return $this->supportReply($site, $conversation, $ticket, $question);
+        }
+
+        // Asking for a person opens the support transcript instead of an
+        // answer — decided before the consent gate and quota, because human
+        // support must never be blocked by either.
+        if ($this->handoffs->wantsHuman($question)) {
+            return $this->handoff($site, $conversation, $question);
+        }
+
         abort_if(
             $site->collect_email && $conversation->visitor_email_consent_at === null,
             403,
             'Provide your email and consent before starting this chat.',
         );
-
-        if ($question === '') {
-            return response()->json(['message' => 'Type a message first.'], 422);
-        }
 
         $site->rotateQuotaIfNeeded();
 
@@ -261,7 +317,7 @@ class WidgetChatController extends Controller
                 ->send();
 
             return response()->json([
-                'message' => 'This assistant has reached its monthly limit. Please get in touch another way.',
+                'message' => 'This assistant has reached its monthly limit. Ask to talk to a human to reach our support team.',
                 'exhausted' => true,
             ], 429);
         }
@@ -401,6 +457,161 @@ class WidgetChatController extends Controller
             ->group('conversation.'.$conversation->getKey())
             ->dedupe('conversation.replied.'.$asked->getKey())
             ->send();
+    }
+
+    /**
+     * Hand the visitor to a person: opens (or rejoins) the support
+     * transcript, mirrors the request into the widget transcript and
+     * streams the acknowledgement back as Server-Sent Events.
+     */
+    private function handoff(Site $site, WidgetConversation $conversation, string $question): Response
+    {
+        $conversation->messages()->create([
+            'site_id' => $site->getKey(),
+            'role' => ChatRole::User,
+            'content' => $question,
+            'credit_cost' => 0,
+        ]);
+
+        $assistant = $conversation->messages()->create([
+            'site_id' => $site->getKey(),
+            'role' => ChatRole::Assistant,
+            'content' => self::HANDOFF_TEXT,
+            'status' => MessageStatus::Complete,
+            'credit_cost' => 0,
+        ]);
+
+        $conversation->increment('message_count', 2);
+
+        $ticket = $this->support->start($conversation, $question);
+
+        $this->escalate($conversation, $site, 'visitor_requested', automated: false);
+
+        return $this->streamFrames(function (callable $emit) use ($ticket, $assistant): void {
+            $emit('status', ['phase' => AnswerPhase::Reading->value]);
+            $emit('delta', ['text' => self::HANDOFF_TEXT]);
+            $emit('handoff', $this->supportPayload($ticket));
+            $emit('done', ['id' => $assistant->getKey()]);
+        });
+    }
+
+    /**
+     * A follow-up while a human conversation is open: the message goes to
+     * the support transcript and the staff side is notified — no RAG, no
+     * quota, no credits.
+     */
+    private function supportReply(Site $site, WidgetConversation $conversation, SupportConversation $ticket, string $question): Response
+    {
+        $asked = $conversation->messages()->create([
+            'site_id' => $site->getKey(),
+            'role' => ChatRole::User,
+            'content' => $question,
+            'credit_cost' => 0,
+        ]);
+
+        $conversation->increment('message_count', 1);
+
+        $ticket = $this->support->start($conversation, $question);
+
+        return $this->streamFrames(function (callable $emit) use ($ticket, $asked): void {
+            $emit('support', $this->supportPayload($ticket));
+            $emit('done', ['id' => $asked->getKey()]);
+        });
+    }
+
+    /**
+     * Write pre-computed SSE frames in one shot: these streams carry no
+     * model output, so there is nothing to flush incrementally.
+     *
+     * @param  callable(callable): void  $frames
+     */
+    private function streamFrames(callable $frames): Response
+    {
+        return response()->stream(function () use ($frames): void {
+            ignore_user_abort(true);
+
+            $emit = static function (string $event, array $data): void {
+                echo 'event: '.$event."\n";
+                echo 'data: '.json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n\n";
+
+                if (ob_get_level() > 0) {
+                    @ob_flush();
+                }
+
+                flush();
+            };
+
+            $frames($emit);
+        }, 200, [
+            'Content-Type' => 'text/event-stream; charset=utf-8',
+            'Cache-Control' => 'no-cache, no-transform',
+            'X-Accel-Buffering' => 'no',
+            'Connection' => 'keep-alive',
+        ]);
+    }
+
+    /**
+     * The visitor's support conversation, live or resolved — the payload the
+     * widget needs to render (and keep polling) its support mode.
+     */
+    private function latestSupport(WidgetConversation $conversation): ?SupportConversation
+    {
+        return SupportConversation::query()
+            ->where('widget_conversation_id', $conversation->getKey())
+            ->with('agent:id,name')
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function supportPayload(SupportConversation $ticket): array
+    {
+        return [
+            'conversation_id' => $ticket->getKey(),
+            'status' => $ticket->status->value,
+            'status_label' => $ticket->status->label(),
+            'agent' => $ticket->agent?->name,
+            'live' => $ticket->isLive(),
+            'message_count' => (int) $ticket->message_count,
+            // Everything the transcript already holds, so a widget that just
+            // entered support mode starts its poll cursor here instead of
+            // re-rendering lines it already shows (the welcome line, its own
+            // request) as duplicates.
+            'last_message_id' => (int) $ticket->messages()->max('id'),
+        ];
+    }
+
+    /**
+     * Support transcript rows for the widget, optionally only those newer
+     * than the visitor's cursor.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function supportMessages(?SupportConversation $ticket, int $since): array
+    {
+        if ($ticket === null) {
+            return [];
+        }
+
+        return $ticket->messages()
+            ->with('sender:id,name')
+            ->where('id', '>', $since)
+            ->orderBy('id')
+            ->get()
+            ->map(fn (SupportMessage $message): array => [
+                'id' => $message->getKey(),
+                'role' => $message->role->value,
+                'label' => match ($message->role) {
+                    SupportMessageRole::User => 'You',
+                    SupportMessageRole::Agent => $message->sender?->name ?? 'Support',
+                    SupportMessageRole::System => null,
+                },
+                'content' => $message->content,
+                'created_at' => $message->created_at->toIso8601String(),
+            ])
+            ->all();
     }
 
     /**
@@ -584,9 +795,10 @@ class WidgetChatController extends Controller
     }
 
     /**
-     * Hand a conversation to a human when the automated answer failed.
+     * Flag a conversation as escalated: the automated path when the answer
+     * failed, the explicit path when the visitor asked for a person.
      */
-    private function escalate(WidgetConversation $conversation, Site $site, string $reason): void
+    private function escalate(WidgetConversation $conversation, Site $site, string $reason, bool $automated = true): void
     {
         if ($conversation->escalated_at !== null) {
             return;
@@ -602,17 +814,35 @@ class WidgetChatController extends Controller
             'site_id' => $site->getKey(),
             'conversation_id' => $conversation->getKey(),
             'action' => 'visitor.escalated',
-            'details' => ['reason' => $reason, 'automated' => true],
+            'details' => ['reason' => $reason, 'automated' => $automated],
         ]);
+
+        $ticket = $this->supportTicket($conversation);
 
         $this->siteNotifier($site)
             ->type(NotificationType::ConversationEscalated)
-            ->title('Visitor needs a human')
-            ->body('The assistant could not answer on '.$site->name.' — the conversation was escalated.')
-            ->link(route('widget.leads.index', $site), 'Open inbox')
+            ->title($automated ? 'Visitor needs a human' : 'Visitor requested a human')
+            ->body($automated
+                ? 'The assistant could not answer on '.$site->name.' — the conversation was escalated.'
+                : 'A visitor asked to speak with a person on '.$site->name.' — reply from the support inbox.')
+            ->link(
+                $ticket !== null ? route('admin.support.show', $ticket) : route('widget.leads.index', $site),
+                $ticket !== null ? 'Open support inbox' : 'Open inbox',
+            )
             ->meta(['reason' => $reason])
             ->dedupe('conversation.escalated.'.$conversation->getKey())
             ->send();
+    }
+
+    /**
+     * The support ticket opened for this visitor conversation, if any.
+     */
+    private function supportTicket(WidgetConversation $conversation): ?SupportConversation
+    {
+        return SupportConversation::query()
+            ->where('widget_conversation_id', $conversation->getKey())
+            ->latest('id')
+            ->first();
     }
 
     /**

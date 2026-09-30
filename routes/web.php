@@ -11,7 +11,6 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PrivacyController;
-use App\Http\Controllers\SupportController;
 use App\Http\Controllers\Widget\SiteController;
 use App\Http\Controllers\Widget\WidgetAnalyticsController;
 use App\Http\Controllers\Widget\WidgetLeadsController;
@@ -102,19 +101,6 @@ Route::middleware(['auth', 'active', 'workspace'])->group(function (): void {
         Route::get('/unread', [NotificationController::class, 'unreadCount'])->name('unread');
         Route::post('/read-all', [NotificationController::class, 'readAll'])->name('read-all');
         Route::post('/{notification}/read', [NotificationController::class, 'markRead'])->name('read');
-    });
-
-    // One-to-one channel with the support team: opened from the dashboard
-    // chat when the assistant detects a handoff request, or directly here.
-    Route::prefix('support')->name('support.')->group(function (): void {
-        Route::get('/', [SupportController::class, 'index'])->name('index');
-        Route::post('/messages', [SupportController::class, 'store'])
-            ->middleware('throttle:chat')
-            ->name('messages');
-        Route::get('/poll', [SupportController::class, 'poll'])
-            ->middleware('throttle:notifications')
-            ->name('poll');
-        Route::post('/close', [SupportController::class, 'close'])->name('close');
     });
 
     Route::prefix('widget')->name('widget.')->group(function (): void {

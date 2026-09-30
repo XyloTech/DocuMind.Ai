@@ -146,6 +146,15 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by('widget-events:'.$site.':'.$request->ip());
         });
 
+        // A visitor in support mode polls for agent replies every ~3s while
+        // their tab is visible; 40/min covers that with headroom to spare
+        // and shares no budget with the chat itself.
+        RateLimiter::for('widget-support', function (Request $request): Limit {
+            $site = (string) $request->route('siteKey', 'unknown');
+
+            return Limit::perMinute(40)->by('widget-support:'.$site.':'.$request->ip());
+        });
+
         // The header bell polls every ~30s; 60/min keeps a stuck tab honest
         // without ever punishing a human opening the panel.
         RateLimiter::for('notifications', function (Request $request): Limit {

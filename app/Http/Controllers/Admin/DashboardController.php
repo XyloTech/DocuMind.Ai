@@ -164,7 +164,7 @@ class DashboardController extends Controller
             $this->audit->record($actor, null, 'support.inbox_viewed', 'Viewed the human support inbox');
 
             $supportConversations = SupportConversation::query()
-                ->with(['user:id,name', 'agent:id,name'])
+                ->with(['user:id,name', 'agent:id,name', 'widgetConversation.site:id,name'])
                 ->withCount('messages')
                 ->orderByDesc('last_message_at')
                 ->orderByDesc('id')
