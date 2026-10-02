@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Contracts\Encryption\DecryptException;
 
 #[Fillable([
     'site_id',
@@ -71,17 +72,37 @@ class WidgetConversation extends Model
         return $this->hasMany(WidgetMessage::class);
     }
 
+    public function safeVisitorEmail(): ?string
+    {
+        try {
+            return $this->visitor_email;
+        } catch (DecryptException) {
+            return null;
+        }
+    }
+
+    public function safeVisitorId(): ?string
+    {
+        try {
+            return $this->visitor_id;
+        } catch (DecryptException) {
+            return null;
+        }
+    }
+
     protected static function booted(): void
     {
         static::saving(function (self $conversation): void {
-            if ($conversation->visitor_id !== null) {
-                $conversation->visitor_id_hash = hash_hmac('sha256', $conversation->visitor_id, (string) config('app.key'));
+            $visitorId = $conversation->safeVisitorId();
+            if ($visitorId !== null) {
+                $conversation->visitor_id_hash = hash_hmac('sha256', $visitorId, (string) config('app.key'));
             }
 
-            if ($conversation->visitor_email !== null) {
+            $visitorEmail = $conversation->safeVisitorEmail();
+            if ($visitorEmail !== null) {
                 $conversation->visitor_email_hash = hash_hmac(
                     'sha256',
-                    mb_strtolower(trim($conversation->visitor_email)),
+                    mb_strtolower(trim($visitorEmail)),
                     (string) config('app.key'),
                 );
             }

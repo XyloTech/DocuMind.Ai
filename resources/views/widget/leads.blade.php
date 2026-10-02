@@ -4,10 +4,10 @@
 
 @section('content')
     <section data-lead-inbox data-refresh-url="{{ request()->fullUrl() }}">
-        <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5 dark:border-white/10">
             <div>
-                <p class="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{{ $site->name }}</p>
-                <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Visitor inbox</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ $site->name }} / Visitors</p>
+            <h1 class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">Visitor inbox</h1>
                 <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Review consented visitor details and support conversations for this website.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">

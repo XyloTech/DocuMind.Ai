@@ -44,13 +44,14 @@
     <button
         type="button"
         data-notifications-toggle
-        class="btn btn-secondary btn-icon btn-sm relative"
+        aria-controls="notifications-panel"
+        class="btn btn-secondary btn-icon relative h-11 w-11 rounded-2xl text-slate-700 dark:text-slate-100"
         aria-haspopup="true"
         aria-expanded="false"
         aria-label="Notifications"
         title="Notifications — new alerts and activity"
     >
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a24 24 0 0 0 3.844-.537M6.75 3.5A3.75 3.75 0 0 0 3 7.25v3.393c0 .463.168.913.47 1.27l1.09 1.286a.75.75 0 0 1 .13.406v.75A4.75 4.75 0 0 0 10.75 21h2.5a4.75 4.75 0 0 0 4.75-4.75v-.75a.75.75 0 0 1 .13-.406l1.09-1.286c.302-.357.47-.807.47-1.27V7.25A3.75 3.75 0 0 0 15.75 3.5h-9Z"/>
             <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 7.25a2.25 2.25 0 1 1 4.5 0"/>
         </svg>
@@ -62,6 +63,7 @@
     </button>
 
     <div
+        id="notifications-panel"
         data-notifications-panel
         class="dm-notif-panel"
         role="dialog"
@@ -69,7 +71,10 @@
         hidden
     >
         <div class="dm-notif-head">
-            <span class="text-sm font-bold text-slate-900 dark:text-white">Notifications</span>
+            <div class="min-w-0">
+                <span class="block text-sm font-bold text-slate-900 dark:text-white">Notifications</span>
+                <span class="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">Recent account activity</span>
+            </div>
             <button type="button" data-notifications-read-all class="dm-notif-action">
                 Mark all read
             </button>

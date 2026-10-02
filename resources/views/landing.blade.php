@@ -329,6 +329,33 @@
                             No credit card
                         </li>
                     </ul>
+
+                    <div class="reveal mx-auto mt-10 grid max-w-5xl gap-4 md:grid-cols-3">
+                        <div class="rounded-2xl border border-slate-200/80 bg-white/80 p-5 text-left shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur dark:border-white/10 dark:bg-white/[0.03]">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-500">Response time</div>
+                            <div class="mt-3 flex items-end gap-2">
+                                <span class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">2 min</span>
+                                <span class="mb-1 text-sm text-emerald-500">avg</span>
+                            </div>
+                            <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Live, grounded answers for visitors while your team stays focused on high-value work.</p>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200/80 bg-white/80 p-5 text-left shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur dark:border-white/10 dark:bg-white/[0.03]">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-500">CSAT</div>
+                            <div class="mt-3 flex items-end gap-2">
+                                <span class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">4.9/5</span>
+                                <span class="mb-1 text-sm text-slate-500">rated</span>
+                            </div>
+                            <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Elegant support experiences that feel premium and trustworthy across any product.</p>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200/80 bg-white/80 p-5 text-left shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur dark:border-white/10 dark:bg-white/[0.03]">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-500">Setup</div>
+                            <div class="mt-3 flex items-end gap-2">
+                                <span class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">15 min</span>
+                                <span class="mb-1 text-sm text-indigo-500">to launch</span>
+                            </div>
+                            <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Go from knowledge base to embedded chatbot with polished UX and the right guardrails.</p>
+                        </div>
+                    </div>
                 </div>
 
                 {{-- Integrated product demo: a muted, looping tour with live moments --}}
@@ -1670,9 +1697,10 @@
             </div>
 
             <div class="border-t border-slate-200/80 dark:border-white/10">
-                <p class="mx-auto max-w-7xl px-4 py-5 text-xs text-slate-500 sm:px-6 lg:px-8 dark:text-slate-500">
-                    © {{ date('Y') }} {{ config('app.name') }}. All rights reserved.
-                </p>
+                <div class="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8 dark:text-slate-500">
+                    <p>© {{ date('Y') }} {{ config('app.name') }}. All rights reserved.</p>
+                    <p>Developed by <span class="font-medium text-slate-700 dark:text-slate-300">Xylotech</span></p>
+                </div>
             </div>
         </footer>
     </body>

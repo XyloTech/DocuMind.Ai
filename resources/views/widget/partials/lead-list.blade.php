@@ -1,12 +1,16 @@
 @forelse ($conversations as $conversation)
+    @php
+        $visitorEmail = $conversation->safeVisitorEmail();
+        $visitorId = $conversation->safeVisitorId();
+    @endphp
     <article data-lead-conversation="{{ $conversation->getKey() }}" class="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-white/15 dark:bg-[#0d0f15]">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0">
                 <h2 class="break-all text-sm font-bold text-slate-900 dark:text-white">
-                    {{ $conversation->visitor_email ?: 'Email not collected' }}
+                    {{ $visitorEmail ?? ($conversation->visitor_email_consent_at ? 'Email unavailable' : 'Email not collected') }}
                 </h2>
                 <p class="mt-1 break-all text-xs text-slate-600 dark:text-slate-300">
-                    Conversation #{{ $conversation->getKey() }} · Session {{ $conversation->visitor_id }}
+                    Conversation #{{ $conversation->getKey() }} · Session {{ $visitorId ?? 'unavailable' }}
                 </p>
                 <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
                     {{ $conversation->created_at?->format('M j, Y H:i T') }} · {{ $site->domain ?: $site->name }} · {{ $conversation->message_count }} messages
@@ -26,7 +30,7 @@
                 @forelse ($conversation->messages as $message)
                     <li class="rounded-lg bg-slate-50 p-3 text-sm dark:bg-white/[0.04]">
                         <p class="text-xs font-semibold capitalize text-slate-600 dark:text-slate-300">{{ $message->role->value }}</p>
-                        <p class="mt-1 whitespace-pre-wrap break-words leading-relaxed text-slate-900 dark:text-slate-100">{{ $message->content }}</p>
+                        <p class="mt-1 whitespace-pre-wrap break-words leading-relaxed text-slate-900 dark:text-slate-100">{{ $message->safeContent() ?? 'Message preview unavailable.' }}</p>
                     </li>
                 @empty
                     <li class="text-sm text-slate-600 dark:text-slate-300">No messages yet.</li>

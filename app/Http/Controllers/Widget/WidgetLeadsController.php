@@ -87,13 +87,13 @@ class WidgetLeadsController extends Controller
 
             foreach ($this->filteredQuery($site, $filters)->with(['messages', 'assignedUser'])->orderBy('id')->lazyById(100) as $conversation) {
                 $transcript = $conversation->messages
-                    ->map(fn ($message): string => $message->role->value.': '.$message->content)
+                    ->map(fn ($message): string => $message->role->value.': '.($message->safeContent() ?? 'Message preview unavailable.'))
                     ->implode("\n");
 
                 fputcsv($output, [
-                    $this->csvSafe((string) $conversation->visitor_email),
+                    $this->csvSafe((string) ($conversation->safeVisitorEmail() ?? '')),
                     $conversation->getKey(),
-                    $this->csvSafe($conversation->visitor_id),
+                    $this->csvSafe($conversation->safeVisitorId() ?? ''),
                     $conversation->created_at?->toIso8601String(),
                     $this->csvSafe($site->domain ?: $site->name),
                     $conversation->status,
@@ -216,10 +216,16 @@ class WidgetLeadsController extends Controller
         Gate::authorize('viewLeads', $site);
         $this->ensureConversationBelongsToSite($site, $conversation);
 
-        $this->audit($request, $site, $conversation, 'visitor.deleted', [
+        $details = [
             'conversation_id' => $conversation->getKey(),
-            'session_id_hash' => hash_hmac('sha256', (string) $conversation->visitor_id, (string) config('app.key')),
-        ]);
+        ];
+        $visitorId = $conversation->safeVisitorId();
+
+        if ($visitorId !== null) {
+            $details['session_id_hash'] = hash_hmac('sha256', $visitorId, (string) config('app.key'));
+        }
+
+        $this->audit($request, $site, $conversation, 'visitor.deleted', $details);
 
         $conversation->delete();
 

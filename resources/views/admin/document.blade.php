@@ -8,9 +8,9 @@
             ← Knowledge
         </a>
 
-        <div class="mt-3 flex flex-wrap items-end justify-between gap-4">
+        <div class="mt-3 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5 dark:border-white/10">
             <div>
-                <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white break-all">
+            <h1 class="break-all text-2xl font-semibold text-slate-900 dark:text-white">
                     {{ $document->filename }}
                 </h1>
                 <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400">

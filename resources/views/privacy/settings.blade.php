@@ -4,17 +4,15 @@
 
 @section('content')
     <div class="mx-auto w-full max-w-3xl">
-        <div class="flex flex-wrap items-end justify-between gap-4">
+        <div class="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5 dark:border-white/10">
             <div>
-                <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                    Privacy &amp; data
-                </h1>
-                <p class="mt-1.5 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-500">
+                <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Workspace / Settings</p>
+                <h1 class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">Privacy &amp; data</h1>
+                <p class="mt-1.5 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                     Decide what is stored, what may be used for training, and how long anything is kept.
                     Every change here is recorded and can be reversed.
                 </p>
             </div>
-
             <a
                 href="{{ route('privacy.policy') }}"
                 class="btn btn-secondary btn-sm inline-flex items-center gap-1.5"
@@ -28,7 +26,7 @@
         </div>
 
         {{-- Consent status + toggles --}}
-        <section class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-white/10 dark:bg-white/[0.02]">
+        <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0d0f15]">
             <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-white/10 dark:bg-white/[0.02]">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <h2 class="text-sm font-bold text-slate-900 dark:text-white">Your choices</h2>
@@ -172,7 +170,7 @@
         </section>
 
         {{-- Export / delete --}}
-        <section class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-white/10 dark:bg-white/[0.02]">
+        <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0d0f15]">
             <div class="border-b border-slate-100 px-5 py-4 dark:border-white/10">
                 <h2 class="text-sm font-bold text-slate-900 dark:text-white">Your data</h2>
                 <p class="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-500">
@@ -248,7 +246,7 @@
         </section>
 
         {{-- How data is handled --}}
-        <section class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-white/10 dark:bg-white/[0.02]">
+        <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0d0f15]">
             <div class="border-b border-slate-100 px-5 py-4 dark:border-white/10">
                 <h2 class="text-sm font-bold text-slate-900 dark:text-white">How your data is handled</h2>
             </div>

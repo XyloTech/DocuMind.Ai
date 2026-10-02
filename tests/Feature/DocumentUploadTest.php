@@ -32,7 +32,7 @@ class DocumentUploadTest extends TestCase
         $response = $this->actingAs(User::factory()->create())->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertSee('Add a support knowledge PDF', false);
+        $response->assertSee('Add knowledge documents', false);
         $response->assertSee('data-dropzone', false);
     }
 

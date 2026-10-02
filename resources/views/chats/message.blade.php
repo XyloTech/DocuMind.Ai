@@ -12,10 +12,10 @@
     class="group {{ $isUser ? 'flex justify-end' : '' }}"
 >
     @if ($isUser)
-        <div class="max-w-[85%] sm:max-w-[80%]">
+        <div class="max-w-[88%] sm:max-w-[78%]">
             <div
                 data-message-content
-                class="whitespace-pre-wrap break-words rounded-3xl rounded-tr-md bg-blue-100 px-4 py-2.5 text-[15px] leading-relaxed text-slate-800 shadow-xs dark:bg-blue-500/15 dark:text-slate-700 dark:ring-1 dark:ring-blue-400/20"
+                class="whitespace-pre-wrap break-words rounded-xl rounded-tr-md border border-slate-200 bg-slate-100 px-4 py-3 text-[15px] leading-relaxed text-slate-800 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-100"
             >{{ $message->content }}</div>
 
             <div class="dm-action-bar mt-1 flex items-center justify-end gap-1 group-hover:opacity-100 group-focus-within:opacity-100">
@@ -38,7 +38,7 @@
         <div class="w-full max-w-3xl">
             <div class="flex items-start gap-3">
                 {{-- Brand mark: pulses with a halo while the answer streams --}}
-                <x-blobatar :name="config('app.name')" :size="28" data-blobatar-follow="true" class="dm-avatar mt-0.5 ring-1 ring-white/20" />
+            <x-blobatar :name="config('app.name')" :size="30" data-blobatar-follow="true" class="dm-avatar mt-0.5 ring-1 ring-indigo-200/70 shadow-sm dark:ring-white/15" />
 
                 <div class="min-w-0 flex-1">
                     {{-- Reasoning accordion --}}
@@ -73,9 +73,9 @@
 
                     <div
                         data-message-content
-                        class="grok-prose text-[15px] leading-relaxed text-slate-700 {{ $message->status === MessageStatus::Failed
+                        class="grok-prose dm-assistant-content text-[15px] leading-relaxed text-slate-700 {{ $message->status === MessageStatus::Failed
                             ? 'rounded-2xl border border-amber-300/60 bg-amber-50/80 px-4 py-3 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300'
-                            : '' }}"
+                            : 'rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-700 dark:border-white/10 dark:bg-[#0d0f15] dark:text-slate-200' }}"
                     >{{ $message->content !== '' ? $message->content : '…' }}</div>
 
                     @if ($message->status === MessageStatus::Failed && $message->content === '')

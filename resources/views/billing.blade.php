@@ -11,21 +11,24 @@
     @endphp
 
     <div class="mx-auto w-full max-w-4xl">
-        <div class="flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                    Billing &amp; credits
-                </h1>
-                <p class="mt-1.5 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-500">
-                    Every chat message spends one credit. Top up instantly with UPI, cards or netbanking —
-                    credits land in your balance as soon as the payment is confirmed.
-                </p>
-            </div>
+        <div class="mb-7 border-b border-slate-200 pb-5 dark:border-white/10">
+            <div class="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Workspace / Billing</p>
+                    <h1 class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+                        Billing &amp; credits
+                    </h1>
+                    <p class="mt-1.5 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-500">
+                        Every chat message spends one credit. Top up instantly with UPI, cards or netbanking —
+                        credits land in your balance as soon as the payment is confirmed.
+                    </p>
+                </div>
 
-            <div class="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-xs dark:border-white/10 dark:bg-white/5 dark:text-slate-600">
-                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                <span class="font-bold text-slate-900 dark:text-white" data-credits-count>{{ $user->credits }}</span>
-                {{ \Illuminate\Support\Str::plural('credit', $user->credits) }} available
+                <div class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-300">
+                    <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                    <span class="font-bold text-slate-900 dark:text-white" data-credits-count>{{ $user->credits }}</span>
+                    {{ \Illuminate\Support\Str::plural('credit', $user->credits) }} available
+                </div>
             </div>
         </div>
 
@@ -47,7 +50,7 @@
         <section class="mt-6">
             <div class="mb-3 flex items-end justify-between gap-2">
                 <div>
-                    <h2 class="text-sm font-bold text-slate-800 dark:text-slate-200">Credit packs</h2>
+                    <h2 class="text-sm font-semibold text-slate-900 dark:text-white">Credit packs</h2>
                     <p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500">One-time purchases — credits never expire.</p>
                 </div>
             </div>
@@ -63,8 +66,11 @@
                 class="grid gap-4 sm:grid-cols-3"
             >
                 @foreach ($packs as $id => $pack)
-                    <div class="dm-card flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-white/10 dark:bg-white/[0.02]">
-                        <p class="text-xs font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">{{ $pack['name'] }}</p>
+                    <div class="dm-card flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 dark:border-white/10 dark:bg-[#0d0f15]">
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ $pack['name'] }}</p>
+                            <span class="inline-flex h-8 min-w-8 items-center justify-center rounded-lg bg-slate-100 px-2 text-[11px] font-semibold text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">+{{ $pack['credits'] }}</span>
+                        </div>
                         <p class="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                             {{ $pack['credits'] }}
                             <span class="text-sm font-semibold text-slate-500 dark:text-slate-400">credits</span>
@@ -87,7 +93,7 @@
             </div>
         </section>
 
-        <section class="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-white/10 dark:bg-white/[0.02]">
+        <section class="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0d0f15]">
             <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-white/10 dark:bg-white/[0.02]">
                 <h2 class="text-sm font-bold text-slate-900 dark:text-white">Purchase history</h2>
             </div>

@@ -7,8 +7,10 @@ use App\Models\Document;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\WidgetEvent;
+use App\Models\WidgetConversation;
 use App\Models\WidgetMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class SiteManagementTest extends TestCase
@@ -463,6 +465,27 @@ class SiteManagementTest extends TestCase
             ->assertOk()
             ->assertSee('Activity')
             ->assertSee($site->name, false);
+    }
+
+    public function test_analytics_page_renders_when_a_message_cannot_be_decrypted(): void
+    {
+        $user = User::factory()->create();
+        $site = Site::factory()->create(['user_id' => $user->getKey()]);
+        $conversation = WidgetConversation::factory()->create(['site_id' => $site->getKey()]);
+        $message = WidgetMessage::factory()->assistant('An encrypted answer.')->create([
+            'site_id' => $site->getKey(),
+            'widget_conversation_id' => $conversation->getKey(),
+            'status' => MessageStatus::Complete,
+        ]);
+
+        DB::table('widget_messages')
+            ->where('id', $message->getKey())
+            ->update(['content' => 'not-valid-encrypted-content']);
+
+        $this->actingAs($user)
+            ->get(route('widget.analytics', $site))
+            ->assertOk()
+            ->assertSee('Message preview unavailable.');
     }
 
     public function test_analytics_denies_other_tenants(): void

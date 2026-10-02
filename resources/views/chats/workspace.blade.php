@@ -10,20 +10,20 @@
             <aside
                 data-chat-sidebar
                 data-open="true"
-                class="dm-sidebar flex w-72 shrink-0 flex-col border-r border-slate-200/80 bg-white/70 backdrop-blur-md transition-all duration-200 dark:border-white/10 dark:bg-black/60 max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:w-80 max-lg:shadow-2xl max-lg:data-[open=false]:-translate-x-full"
+                class="dm-sidebar flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 dark:border-white/10 dark:bg-[#0d0f15] max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:w-80 max-lg:shadow-xl max-lg:data-[open=false]:-translate-x-full"
             >
                 {{-- Top Actions --}}
-                <div class="flex items-center gap-2 border-b border-slate-200/80 p-3 dark:border-white/10">
+                <div class="flex items-center gap-2 border-b border-slate-200/80 p-3.5 dark:border-white/10">
                     <a
                         href="{{ route('dashboard') }}"
-                        class="flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-600 dark:hover:bg-white/10"
+                        class="flex min-w-0 items-center gap-2 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"
                         title="Manage support knowledge"
                     >
                         <svg class="h-4 w-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
                             <polyline points="14 2 14 8 20 8"/>
                         </svg>
-                        <span>Knowledge</span>
+                        <span class="truncate">Knowledge base</span>
                     </a>
 
                     <div class="flex-1"></div>
@@ -58,7 +58,7 @@
                 </div>
 
                 {{-- Live Search Filter --}}
-                <div class="px-3 pt-3">
+                <div class="px-3 pt-3.5">
                     <div class="relative">
                         <svg class="pointer-events-none absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400 dark:text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="11" cy="11" r="8"/>
@@ -67,8 +67,9 @@
                         <input
                             type="search"
                             data-search-chats
-                            placeholder="Search chats…"
-                            class="dm-sidebar-search w-full rounded-xl border border-slate-200/80 bg-slate-50/80 py-1.5 pl-8.5 pr-3 text-xs text-slate-900 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-white/10 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white"
+                            aria-label="Search conversations"
+                            placeholder="Find a conversation"
+                            class="dm-sidebar-search h-10 w-full rounded-xl border border-slate-200/80 bg-white/80 pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 shadow-sm dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-white/10 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white"
                         >
 
                     </div>
@@ -77,9 +78,9 @@
                 {{-- Conversations & Knowledge Sources --}}
                 <div class="min-h-0 flex-1 space-y-5 overflow-y-auto p-3" data-chat-list-container>
                     <section>
-                        <div class="flex items-center justify-between px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                            <span>Conversations</span>
-                            <span class="text-[10px] font-normal lowercase text-slate-400 dark:text-slate-500">({{ count($chats) }})</span>
+                        <div class="flex items-center justify-between px-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                            <span>Recent conversations</span>
+                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tracking-normal text-slate-500 dark:bg-white/5 dark:text-slate-400">{{ count($chats) }}</span>
                         </div>
 
                         <ul class="mt-2 space-y-0.5" data-chats-list>
@@ -106,7 +107,7 @@
                                             <span class="truncate text-xs" data-chat-item-title>{{ $history->title }}</span>
                                         </a>
 
-                                        <div class="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                                        <div class="flex items-center gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                                             {{-- Inline Rename --}}
                                             <button
                                                 type="button"
@@ -158,9 +159,17 @@
 
                     {{-- Knowledge section in sidebar --}}
                     <section>
-                        <div class="flex items-center justify-between px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                            <span>Knowledge</span>
-                            <a href="{{ route('dashboard') }}" class="text-[10px] font-medium text-indigo-500 hover:underline">Manage</a>
+                        <div class="flex items-center justify-between gap-2 px-2">
+                            <div class="flex min-w-0 items-center gap-2">
+                                <h2 class="text-xs font-semibold text-slate-800 dark:text-slate-200">Knowledge sources</h2>
+                                <span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-500 dark:bg-white/[0.06] dark:text-slate-400">{{ $documents->count() }}</span>
+                            </div>
+                            <a href="{{ route('dashboard') }}" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-indigo-700 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white">
+                                Manage
+                                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M7 17 17 7M7 7h10v10"/>
+                                </svg>
+                            </a>
                         </div>
 
                         <ul class="mt-2 space-y-1">
@@ -172,15 +181,23 @@
 
                                         <button
                                             type="submit"
-                                            class="dm-doc-row group flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left hover:bg-slate-100 dark:hover:bg-white/5"
+                                            aria-label="Start a chat using {{ $document->filename }}"
+                                            title="{{ $document->filename }}"
+                                            @class([
+                                                'dm-doc-row group flex min-h-14 w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition',
+                                                'bg-indigo-50/70 dark:bg-indigo-500/[0.08]' => $chat?->document_id === $document->getKey(),
+                                                'hover:bg-slate-100/80 dark:hover:bg-white/[0.05]' => $chat?->document_id !== $document->getKey(),
+                                            ])
                                         >
-                                            <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
-                                                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200/80 bg-white text-slate-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300">
+                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                                     <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                                                    <path d="M14 2v6h6"/>
                                                 </svg>
                                             </span>
-                                            <span class="min-w-0 flex-1 truncate text-xs font-medium text-slate-700 dark:text-slate-600">
-                                                {{ $document->filename }}
+                                            <span class="min-w-0 flex-1 pt-0.5">
+                                                <span class="block break-words text-[13px] font-medium leading-[1.45] text-slate-800 [overflow-wrap:anywhere] dark:text-slate-200">{{ $document->filename }}</span>
+                                                <span class="mt-1 block text-[10px] leading-4 text-slate-500 dark:text-slate-400">PDF <span aria-hidden="true">·</span> {{ number_format($document->page_count) }} pages <span aria-hidden="true">·</span> {{ number_format($document->chunk_count) }} sections</span>
                                             </span>
                                         </button>
                                     </form>
@@ -196,7 +213,7 @@
 
                 {{-- Sidebar Footer with Credits --}}
                 <div class="border-t border-slate-200/80 p-3 dark:border-white/10">
-                    <div class="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200/80 dark:bg-white/5 dark:text-slate-600 dark:ring-white/10">
+                    <a href="{{ route('billing.index') }}" class="flex items-center justify-between gap-2 rounded-xl bg-white/85 px-3 py-2.5 text-xs text-slate-600 ring-1 ring-slate-200/80 transition hover:bg-white hover:ring-indigo-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10 dark:hover:bg-white/[0.08] dark:hover:ring-indigo-400/30" title="Add credits">
                         <span class="flex items-center gap-1.5">
                             <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
                             {{ $cost }} credit/msg
@@ -204,29 +221,27 @@
                         <span class="font-bold text-slate-900 dark:text-white" data-sidebar-credits>
                             {{ $user->credits }} left
                         </span>
-                    </div>
+                    </a>
+                    <p class="mt-2.5 text-center text-[10px] text-slate-400 dark:text-slate-500">Developed by <span class="font-medium text-slate-600 dark:text-slate-300">Xylotech</span></p>
                 </div>
             </aside>
 
             {{-- Main Chat Area --}}
-            <section class="relative flex min-w-0 flex-1 flex-col bg-white dark:bg-black">
+            <section class="dm-chat-shell relative flex min-w-0 flex-1 flex-col bg-white dark:bg-black">
                 @if ($chat === null)
                     {{-- Empty state when no chat is selected --}}
                     <div class="flex flex-1 items-center justify-center px-6 py-12">
                         <div class="w-full max-w-xl text-center">
                             {{-- Hero mark with ambient glow --}}
-                            <div class="relative mx-auto flex h-16 w-16 items-center justify-center">
-                                <div class="absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 opacity-30 blur-2xl"></div>
-                                <div class="relative flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-500/25 ring-1 ring-white/20">
+                            <div class="relative mx-auto flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-300">
                                     <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M4 4h7v7H4z" />
                                         <path d="M13 13h7v7h-7z" />
                                         <path d="m4 20 16-16" />
                                     </svg>
-                                </div>
                             </div>
 
-                            <h1 class="mt-7 bg-gradient-to-b from-slate-900 to-slate-500 bg-clip-text text-3xl font-extrabold tracking-tight text-transparent dark:from-white dark:to-slate-400 sm:text-4xl">
+                            <h1 class="mt-5 text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl">
                                 Test your support assistant
                             </h1>
                             <p class="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-500">
@@ -272,7 +287,7 @@
                     </div>
                 @else
                     {{-- Chat Header --}}
-                    <header class="flex h-14 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur-xl sm:px-6 dark:border-white/10 dark:bg-black/70">
+                    <header class="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6 dark:border-white/10 dark:bg-[#0d0f15]">
                         <div class="flex min-w-0 items-center gap-3">
                             <button
                                 type="button"
@@ -289,7 +304,7 @@
 
                             <div class="min-w-0">
                                 <div class="flex items-center gap-1.5">
-                                    <h1 class="truncate text-[13px] font-semibold text-slate-900 dark:text-white" data-header-title>
+                                    <h1 class="truncate text-sm font-semibold text-slate-900 dark:text-white" data-header-title>
                                         {{ $chat->title }}
                                     </h1>
                                     <button
@@ -308,12 +323,9 @@
                                     </button>
                                 </div>
                                 <p class="flex items-center gap-1.5 truncate text-[11px] text-slate-500">
-                                    <span class="relative flex h-1.5 w-1.5 shrink-0">
-                                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                                        <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                                    </span>
+                                    <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
                                     <span class="truncate">
-                                        Knowledge: <span class="font-medium text-slate-700 dark:text-slate-600">{{ $chat->document?->filename ?? 'Support source' }}</span>
+                                        Knowledge: <span class="font-medium text-slate-700 dark:text-slate-300">{{ $chat->document?->filename ?? 'Support source' }}</span>
                                     </span>
                                 </p>
                             </div>
@@ -321,8 +333,8 @@
 
                         <div class="flex items-center gap-2">
                             {{-- Model / retrieval mode indicator --}}
-                            <span class="hidden items-center gap-1.5 rounded-full border border-indigo-200/80 bg-indigo-50/80 px-2.5 py-1 text-[11px] font-semibold text-indigo-600 sm:inline-flex dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300">
-                                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <span class="hidden items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600 sm:inline-flex dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300">
+                                        <svg class="h-3 w-3 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="12" cy="12" r="10"/>
                                     <path d="m10 15 5-3-5-3v6Z"/>
                                 </svg>
@@ -365,26 +377,23 @@
                     {{-- Transcript Stream --}}
                     <div
                         data-transcript
-                        class="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6"
+                        class="dm-chat-surface min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6"
                     >
-                        <div class="mx-auto flex w-full max-w-3xl flex-col gap-7 pb-44">
+                        <div class="mx-auto flex w-full max-w-3xl flex-col gap-8 pb-48 pt-2 sm:gap-9">
                             @forelse ($messages as $message)
                                 @include('chats.message', ['message' => $message])
                             @empty
                                 {{-- Welcome prompt with pill suggestion chips --}}
                                 <div data-placeholder class="pt-6 text-center sm:pt-12">
-                                    <div class="relative mx-auto flex h-14 w-14 items-center justify-center">
-                                        <div class="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 opacity-30 blur-xl"></div>
-                                        <div class="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/25 ring-1 ring-white/20">
+                                    <div class="relative mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-300">
                                             <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M4 4h7v7H4z" />
                                                 <path d="M13 13h7v7h-7z" />
                                                 <path d="m4 20 16-16" />
                                             </svg>
-                                        </div>
                                     </div>
 
-                                    <h2 class="mt-5 bg-gradient-to-b from-slate-900 to-slate-500 bg-clip-text text-2xl font-bold tracking-tight text-transparent dark:from-white dark:to-slate-400 sm:text-[28px]">
+                                    <h2 class="mt-5 text-xl font-semibold text-slate-900 dark:text-white sm:text-2xl">
                                         Try a customer question
                                     </h2>
                                     <p class="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-slate-500">
@@ -422,7 +431,7 @@
                     {{-- Chat settings panel --}}
                     <div
                         data-settings-panel
-                        class="pointer-events-none absolute right-3 top-3 z-20 w-72 origin-top-right scale-95 rounded-2xl border border-slate-200 bg-white/95 dark:bg-[#0d0f15]/95 p-4 opacity-0 shadow-2xl backdrop-blur-xl transition duration-200 dark:border-white/10 sm:right-5"
+                        class="pointer-events-none absolute right-3 top-3 z-20 w-72 origin-top-right scale-95 rounded-xl border border-slate-200 bg-white p-4 opacity-0 shadow-lg transition duration-200 dark:border-white/10 dark:bg-[#0d0f15] sm:right-5"
                         role="dialog"
                         aria-label="Chat settings"
                         hidden
@@ -467,7 +476,7 @@
                             <div class="flex items-baseline justify-between gap-3">
                                 <dt class="shrink-0 text-slate-500">Model</dt>
                                 <dd class="flex items-center gap-1.5 font-medium text-slate-800 dark:text-slate-700">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500"></span>
+                                    <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
                                     {{ \App\Support\ModelBrand::active() }}
                                 </dd>
                             </div>
@@ -540,7 +549,7 @@
                     </button>
 
                     {{-- Floating Composer Dock --}}
-                    <footer class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-white via-white/95 to-transparent px-4 pb-4 pt-8 dark:from-black dark:via-black/95 sm:px-6">
+                    <footer class="pointer-events-none absolute inset-x-0 bottom-0 bg-white px-4 pb-4 pt-6 dark:bg-black sm:px-6">
                         <div class="pointer-events-auto mx-auto w-full max-w-3xl">
                             {{-- Context chips above the input --}}
                             <div class="dm-chip-row mb-2 flex items-center gap-2 overflow-x-auto px-1 pb-0.5">

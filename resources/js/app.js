@@ -720,6 +720,16 @@ function initDeletes() {
 }
 
 function initTheme() {
+    const updateThemeButtons = (dark) => {
+        document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+            button.setAttribute('aria-pressed', String(dark));
+            button.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+            button.setAttribute('title', dark ? 'Switch to light mode' : 'Switch to dark mode');
+        });
+    };
+
+    updateThemeButtons(document.documentElement.classList.contains('dark'));
+
     document.addEventListener('click', (event) => {
         const button = event.target.closest('[data-theme-toggle]');
 
@@ -730,6 +740,7 @@ function initTheme() {
         const dark = !document.documentElement.classList.contains('dark');
 
         document.documentElement.classList.toggle('dark', dark);
+    updateThemeButtons(dark);
 
         try {
             localStorage.setItem('documind_theme', dark ? 'dark' : 'light');
@@ -2068,6 +2079,10 @@ function updateCredits(credits) {
         node.textContent = `${count} ${count === 1 ? 'credit' : 'credits'}`;
     });
 
+    document.querySelectorAll('[data-credits-short]').forEach((node) => {
+        node.textContent = `${count} cr`;
+    });
+
     document.querySelectorAll('[data-sidebar-credits]').forEach((node) => {
         node.textContent = `${count} left`;
     });
@@ -2914,18 +2929,28 @@ function initMobileNav() {
     const backdrop = document.querySelector('[data-mobile-nav-backdrop]');
 
     const setOpen = (open) => {
+        toggle?.setAttribute('aria-expanded', String(open));
+        nav.setAttribute('aria-hidden', String(!open));
+
         if (open) {
             nav.classList.add('open');
             document.body.style.overflow = 'hidden';
+            nav.querySelector('nav a')?.focus();
         } else {
             nav.classList.remove('open');
             document.body.style.overflow = '';
+            toggle?.focus();
         }
     };
 
     toggle?.addEventListener('click', () => setOpen(true));
     close?.addEventListener('click', () => setOpen(false));
     backdrop?.addEventListener('click', () => setOpen(false));
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && nav.classList.contains('open')) {
+            setOpen(false);
+        }
+    });
 }
 
 /*
@@ -4090,6 +4115,8 @@ function initNotificationCenter() {
     const panel = root.querySelector('[data-notifications-panel]');
     const list = root.querySelector('[data-notifications-list]');
     const badge = root.querySelector('[data-notifications-badge]');
+    const accountBadges = document.querySelectorAll('[data-account-notifications-badge]');
+    const accountToggle = document.querySelector('[data-user-dropdown-toggle]');
     const readAll = root.querySelector('[data-notifications-read-all]');
 
     const stateEls = {};
@@ -4104,10 +4131,22 @@ function initNotificationCenter() {
     let inFlight = false;
 
     const setBadge = (count) => {
-        if (!badge) return;
         const n = Number(count) || 0;
-        badge.hidden = n === 0;
-        badge.textContent = n > 9 ? '9+' : String(n);
+        if (badge) {
+            badge.hidden = n === 0;
+            badge.textContent = n > 9 ? '9+' : String(n);
+        }
+        accountBadges.forEach((accountBadge) => {
+            accountBadge.hidden = n === 0;
+            accountBadge.textContent = n > 9 ? '9+' : String(n);
+            accountBadge.setAttribute('aria-label', `${n} unread notifications`);
+        });
+        if (accountToggle) {
+            const accountName = accountToggle.dataset.accountName || 'account';
+            accountToggle.setAttribute('aria-label', n > 0
+                ? `Open account menu for ${accountName}, ${n} unread notifications`
+                : `Open account menu for ${accountName}`);
+        }
         toggle?.setAttribute('aria-label', n > 0 ? `Notifications, ${n} unread` : 'Notifications, none unread');
     };
 

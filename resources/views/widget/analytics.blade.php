@@ -12,10 +12,10 @@
         data-error="{{ __('Live refresh failed. Retrying…') }}"
         class="mx-auto max-w-[1400px]"
     >
-        <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5 dark:border-white/10">
             <div>
-                <p class="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{{ $site->name }}</p>
-                <h1 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Activity</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ $site->name }} / Assistant activity</p>
+            <h1 class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">Activity</h1>
                 <p class="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
                     Everything the support assistant did in the last {{ $metrics['range']['days'] }} days:
                     conversations, answers, failures and how visitors engaged with the widget.
@@ -409,7 +409,7 @@
                                             @endif
                                         </span>
                                         <span class="mt-0.5 block truncate text-xs text-slate-500 dark:text-slate-400">
-                                            {{ $conversation->messages->first()?->role?->value === 'user' ? 'Visitor: '.\Illuminate\Support\Str::limit($conversation->messages->first()->content, 90) : 'Transcript' }}
+                                            {{ $conversation->messages->first()?->role?->value === 'user' ? 'Visitor: '.\Illuminate\Support\Str::limit($conversation->messages->first()->safeContent() ?? 'Message preview unavailable.', 90) : 'Transcript' }}
                                         </span>
                                     </span>
 
@@ -428,9 +428,9 @@
                                                   title="Resolved {{ $conversation->resolved_at->diffForHumans() }}">Resolved</span>
                                         @endif
 
-                                        @if ($canSeeLeads && $conversation->visitor_email)
+                                        @if ($canSeeLeads && $conversation->safeVisitorEmail())
                                             <span class="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200 dark:bg-white/10 dark:text-slate-300 dark:ring-white/10"
-                                                  title="Visitor email (consent recorded {{ $conversation->visitor_email_consent_at?->format('d M Y') }})">{{ $conversation->visitor_email }}</span>
+                                                  title="Visitor email (consent recorded {{ $conversation->visitor_email_consent_at?->format('d M Y') }})">{{ $conversation->safeVisitorEmail() }}</span>
                                         @endif
                                     </span>
 
@@ -454,7 +454,7 @@
                                                         @endif
                                                     </span>
 
-                                                    <span class="whitespace-pre-wrap break-words">{{ \Illuminate\Support\Str::limit($message->content, 900) }}</span>
+                                                    <span class="whitespace-pre-wrap break-words">{{ \Illuminate\Support\Str::limit($message->safeContent() ?? 'Message preview unavailable.', 900) }}</span>
 
                                                     @if ($message->status === \App\Enums\MessageStatus::Failed)
                                                         <span class="mt-2 block rounded-md bg-rose-100/70 px-2 py-1 text-[11px] font-semibold text-rose-800 dark:bg-rose-500/15 dark:text-rose-200"

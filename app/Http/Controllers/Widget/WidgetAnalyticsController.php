@@ -137,7 +137,7 @@ class WidgetAnalyticsController extends Controller
                         $messages->where('status', MessageStatus::Failed)->count(),
                         $messages->where('was_refused', true)->count(),
                         (int) round((float) $messages->avg('latency_ms')),
-                        $canSeeLeads ? $conversation->visitor_email : '',
+                        $canSeeLeads ? ($conversation->safeVisitorEmail() ?? '') : '',
                         $canSeeLeads ? $conversation->visitor_email_consent_at?->toIso8601String() : '',
                     ]);
                 });
@@ -487,7 +487,7 @@ class WidgetAnalyticsController extends Controller
             ->map(fn (WidgetMessage $message): array => [
                 'id' => $message->getKey(),
                 'conversation_id' => $message->widget_conversation_id,
-                'preview' => Str::limit(strip_tags($message->content), 140),
+                'preview' => Str::limit(strip_tags($message->safeContent() ?? 'Message preview unavailable.'), 140),
                 'status' => $message->status->value,
                 'error_reason' => $message->error_reason,
                 'was_fallback' => $message->was_fallback,

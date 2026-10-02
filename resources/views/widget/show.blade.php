@@ -3,20 +3,30 @@
 @section('title', $site->name.' · Widget')
 
 @section('content')
-    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-            <div class="flex items-center gap-2.5">
-                <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{{ $site->name }}</h1>
-                <span class="rounded-full border px-2.5 py-0.5 text-xs font-semibold {{ $site->isLive()
-                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400'
-                    : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-500' }}">
-                    {{ $site->isLive() ? 'Live' : 'Paused' }}
-                </span>
+    <div class="dm-widget-hero mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#0d0f15] sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-5">
+            <div class="flex min-w-0 items-center gap-4">
+                <x-blobatar :name="$site->bot_name" :fallback="$site->name" :size="44" background="squircle" class="shrink-0 ring-1 ring-slate-200 dark:ring-white/10" />
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Support assistant</span>
+                        <span class="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold {{ $site->isLive()
+                            ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400'
+                            : 'border-slate-200 bg-white/70 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400' }}">
+                            <span class="mr-1 inline-block h-1.5 w-1.5 rounded-full {{ $site->isLive() ? 'bg-emerald-500' : 'bg-slate-400' }}"></span>
+                            {{ $site->isLive() ? 'Live' : 'Paused' }}
+                        </span>
+                    </div>
+                    <h1 class="mt-1 truncate text-2xl font-bold text-slate-900 dark:text-white">{{ $site->name }}</h1>
+                    <p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                        {{ $site->domain ?: 'No domain configured' }}
+                        <span class="mx-1.5 text-slate-300 dark:text-slate-600">/</span>
+                        Site key <code class="rounded-md bg-white/80 px-1.5 py-0.5 font-mono text-[11px] text-slate-700 ring-1 ring-slate-200/70 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10">{{ $site->site_key }}</code>
+                    </p>
+                </div>
             </div>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ $site->domain ?: 'No domain configured' }} &middot; Key: <code class="rounded bg-slate-100 px-1 py-0.5 text-xs font-mono dark:bg-white/10">{{ $site->site_key }}</code></p>
-        </div>
 
-        <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
             <a
                 href="{{ route('widget.analytics', $site) }}"
                 class="btn btn-secondary btn-sm inline-flex items-center gap-1.5"
@@ -36,14 +46,15 @@
             <a href="{{ route('widget.index') }}" class="btn btn-ghost btn-sm">
                 &larr; All sites
             </a>
+            </div>
         </div>
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+    <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div class="min-w-0 space-y-6">
             @include('widget.partials.install-embed')
 
-            <form method="POST" action="{{ route('widget.update', $site) }}" class="space-y-6" data-widget-customization>
+            <form method="POST" action="{{ route('widget.update', $site) }}" class="dm-widget-settings space-y-6" data-widget-customization>
             @csrf
             @method('PUT')
 
@@ -59,7 +70,7 @@
             @endif
 
             {{-- Knowledge Base Selection --}}
-            <section class="rounded-2xl border border-slate-200/80 bg-white dark:bg-[#0d0f15] p-5 shadow-xs dark:border-white/10">
+            <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#0d0f15] sm:p-6">
                 <h2 class="text-sm font-bold text-slate-900 dark:text-white">Product support knowledge</h2>
                 <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">These internal sources inform customer answers about your product, services, and policies.</p>
 
@@ -93,7 +104,7 @@
             </section>
 
             {{-- Customization & Branding --}}
-            <section class="rounded-2xl border border-slate-200/80 bg-white dark:bg-[#0d0f15] p-5 shadow-xs dark:border-white/10">
+            <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#0d0f15] sm:p-6">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <h2 class="text-sm font-bold text-slate-900 dark:text-white">Appearance & Personality</h2>
                     <button type="button" data-widget-reset class="btn btn-ghost btn-sm inline-flex items-center gap-1.5">
@@ -220,7 +231,7 @@
                     {{-- Assistant Avatar: the Blobatar shown in the launcher, chat header,
                          typing indicator and every reply. Same seed, same face, on every
                          page the widget is installed on. --}}
-                    <div class="sm:col-span-2 rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+                    <div class="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
                         <div class="flex items-center justify-between gap-3">
                             <div class="min-w-0">
                                 <h3 class="text-xs font-bold text-slate-900 dark:text-white">Assistant Avatar</h3>
@@ -427,25 +438,26 @@
                 </div>
             </section>
 
-            <div class="flex items-center gap-3">
-                <button type="submit" class="btn btn-primary btn-sm">
-                    Save Changes
+            <div class="sticky bottom-3 z-10 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-[#0d0f15]">
+                <p class="hidden text-xs text-slate-500 dark:text-slate-400 sm:block">Your changes apply to the live assistant.</p>
+                <button type="submit" class="btn btn-primary btn-sm min-w-32">
+                    Save changes
                 </button>
             </div>
             </form>
         </div>
 
         {{-- Preview & Controls Sidebar --}}
-        <aside class="space-y-5">
+        <aside class="space-y-5 lg:sticky lg:top-5">
             {{-- Grok Widget Mockup Preview --}}
-            <section class="rounded-2xl border border-slate-200/80 bg-white dark:bg-[#0d0f15] p-5 shadow-xs dark:border-white/10">
+            <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#0d0f15]">
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-bold text-slate-900 dark:text-white">Widget Preview</h2>
-                    <span data-preview-status aria-live="polite" class="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Live preview</span>
+                    <span data-preview-status aria-live="polite" class="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Live preview</span>
                 </div>
 
                 {{-- Interactive Mini Chat Preview --}}
-                <div data-widget-preview data-preview-theme="{{ $site->theme }}" class="relative mt-4 flex h-72 flex-col justify-end overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-4 dark:border-white/10 dark:bg-black/60">
+                <div data-widget-preview data-preview-theme="{{ $site->theme }}" class="relative mt-4 flex h-80 flex-col justify-end overflow-hidden rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#e2e8f0_45%,#eef2ff_100%)] p-4 shadow-inner dark:border-white/10 dark:bg-[linear-gradient(135deg,#111827_0%,#090a0f_55%,#17152a_100%)]">
                     {{-- Mini chat window popup --}}
                     <div data-preview-panel class="mb-3 flex w-[88%] flex-col self-end rounded-xl border border-slate-200/80 bg-white dark:bg-[#0d0f15] p-3 shadow-lg dark:border-white/10">
                         <div class="flex items-center gap-2 border-b border-slate-100 pb-2 dark:border-white/10">
@@ -482,7 +494,7 @@
             </section>
 
             {{-- Quota Usage --}}
-            <section class="rounded-2xl border border-slate-200/80 bg-white dark:bg-[#0d0f15] p-5 shadow-xs dark:border-white/10">
+            <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#0d0f15]">
                 <h2 class="text-sm font-bold text-slate-900 dark:text-white">Monthly Quota</h2>
                 <div class="mt-2 flex items-baseline justify-between">
                     <p class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
@@ -506,7 +518,7 @@
             </section>
 
             {{-- Danger Zone --}}
-            <section class="rounded-2xl border border-rose-200/80 bg-rose-50/50 p-5 shadow-xs dark:border-rose-500/20 dark:bg-rose-500/5">
+            <section class="rounded-xl border border-rose-200 bg-rose-50/60 p-5 dark:border-rose-500/20 dark:bg-rose-500/[0.05]">
                 <h2 class="text-sm font-bold text-rose-800 dark:text-rose-400">Delete Site</h2>
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-500">
                     Permanently deletes this widget, its visitor history and analytics. Your documents will not be affected.

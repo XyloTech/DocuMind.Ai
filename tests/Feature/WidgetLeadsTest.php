@@ -11,6 +11,7 @@ use App\Models\WidgetMessage;
 use App\Models\Workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class WidgetLeadsTest extends TestCase
@@ -36,6 +37,42 @@ class WidgetLeadsTest extends TestCase
             ->assertDontSee('visitor@example.com');
 
         $this->assertNotNull($conversation->fresh()->visitor_email_consent_at);
+    }
+
+    public function test_the_inbox_survives_unreadable_visitor_and_message_ciphertext(): void
+    {
+        [$owner, $site, $conversation] = $this->conversationWithTranscript();
+        $message = $conversation->messages()->firstOrFail();
+
+        DB::table('widget_conversations')
+            ->where('id', $conversation->getKey())
+            ->update([
+                'visitor_email' => 'invalid-email-ciphertext',
+                'visitor_id' => 'invalid-session-ciphertext',
+            ]);
+        DB::table('widget_messages')
+            ->where('id', $message->getKey())
+            ->update(['content' => 'invalid-message-ciphertext']);
+
+        $page = $this->actingAs($owner)->get(route('widget.leads.index', $site));
+
+        $page->assertOk()
+            ->assertSee('Email unavailable')
+            ->assertSee('Session unavailable')
+            ->assertSee('Message preview unavailable.');
+
+        $this->actingAs($owner)->patch(route('widget.leads.update', [$site, $conversation]), [
+            'status' => 'closed',
+            'classification' => 'support',
+            'follow_up_status' => 'none',
+            'assigned_user_id' => null,
+        ])->assertRedirect();
+
+        $this->assertSame('closed', $conversation->fresh()->status);
+
+        $export = $this->actingAs($owner)->get(route('widget.leads.export', $site));
+        $export->assertOk()->assertDownload();
+        $this->assertStringContainsString('Message preview unavailable.', $export->streamedContent());
     }
 
     public function test_the_inbox_searches_by_exact_email_hash_without_storing_plaintext(): void

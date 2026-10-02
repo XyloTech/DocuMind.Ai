@@ -16,12 +16,13 @@
         ];
     @endphp
 
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div class="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5 dark:border-white/10">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Platform operations</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Workspace / Administration</p>
+            <h1 class="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">Platform operations</h1>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Account health, support knowledge, assistant activity, and model access.</p>
         </div>
-        <span class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
+        <span class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-300">
             <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
             {{ $modelName }} · {{ ucfirst($modelDriver) }}
         </span>

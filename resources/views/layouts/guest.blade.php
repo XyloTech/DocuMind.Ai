@@ -16,6 +16,10 @@
         <link rel="icon" type="image/png" sizes="500x500" href="{{ asset('favicon.png') }}">
         <link rel="apple-touch-icon" href="{{ asset('logo.png') }}">
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
         <script>
             // Applied before first paint so a dark-mode reload never flashes white.
             (() => {
@@ -42,7 +46,8 @@
         <button
             type="button"
             data-theme-toggle
-            aria-label="Toggle dark mode"
+            aria-label="Switch color theme"
+            aria-pressed="false"
             class="btn btn-secondary btn-icon btn-sm absolute right-4 top-4 z-30"
         >
             <svg class="h-4 w-4 dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
@@ -73,6 +78,8 @@
                     <a href="{{ route('privacy.policy') }}" class="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Privacy&nbsp;policy</a>.
                 </p>
             </div>
+
+            <p class="mt-8 text-center text-[11px] text-slate-400 dark:text-slate-500">Developed by <span class="font-medium text-slate-600 dark:text-slate-300">Xylotech</span></p>
         </div>
     </body>
 </html>

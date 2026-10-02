@@ -4,9 +4,9 @@
 
 @section('content')
     <div class="mx-auto w-full max-w-3xl">
-        <div class="flex flex-wrap items-end justify-between gap-4">
+        <div class="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5 dark:border-white/10">
             <div>
-                <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+            <h1 class="text-2xl font-semibold text-slate-900 dark:text-white">
                     Notification preferences
                 </h1>
                 <p class="mt-1.5 max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-500">
@@ -25,8 +25,8 @@
             @method('PATCH')
 
             {{-- Delivery channels --}}
-            <section class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-white/10 dark:bg-white/[0.02]">
-                <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-white/10 dark:bg-white/[0.02]">
+            <section class="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0d0f15]">
+                <div class="border-b border-slate-100 bg-slate-50 px-5 py-4 dark:border-white/10 dark:bg-white/[0.02]">
                     <h2 class="text-sm font-bold text-slate-900 dark:text-white">Delivery</h2>
                 </div>
 
@@ -119,8 +119,8 @@
             </section>
 
             {{-- Per-category controls --}}
-            <section class="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs dark:border-white/10 dark:bg-white/[0.02]">
-                <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-white/10 dark:bg-white/[0.02]">
+            <section class="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0d0f15]">
+                <div class="border-b border-slate-100 bg-slate-50 px-5 py-4 dark:border-white/10 dark:bg-white/[0.02]">
                     <h2 class="text-sm font-bold text-slate-900 dark:text-white">By category</h2>
                     <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-500">
                         In-app toggles apply to non-essential items; security, invitations and credit

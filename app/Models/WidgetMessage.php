@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Contracts\Encryption\DecryptException;
 
 #[Fillable([
     'site_id',
@@ -67,5 +68,14 @@ class WidgetMessage extends Model
         $sources = $this->sources;
 
         return is_array($sources) ? array_values($sources) : [];
+    }
+
+    public function safeContent(): ?string
+    {
+        try {
+            return $this->content;
+        } catch (DecryptException) {
+            return null;
+        }
     }
 }
